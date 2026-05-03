@@ -4,12 +4,30 @@ Provides reusable prompt templates for different tasks:
 - Email summarization
 - Smart reply generation
 - Action extraction (calendar, todo, encik)
+- Style injection for personalized output
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+
+# Style injection template
+STYLE_SECTION_TEMPLATE = """
+<writing-style>
+The user's writing style, based on their past emails:
+<examples>
+{style_examples}
+</examples>
+When generating content, mirror the above style in terms of:
+- Sentence length and complexity
+- Formality level
+- Use of bullets vs prose
+- Greeting/sign-off patterns
+- Punctuation and capitalization style
+</writing-style>
+
+"""
 
 # Email summarization prompt
 SUMMARIZE_TEMPLATE = """Summarize the following email in 2-3 sentences:
@@ -164,11 +182,40 @@ def format_confirm(
     )
 
 
+def inject_style(prompt: str, style_samples: list[str]) -> str:
+    """Inject style examples into prompt with structured XML delimiters.
+
+    Args:
+        prompt: Base prompt template
+        style_samples: List of writing samples (max 3)
+
+    Returns:
+        Prompt with style injection prepended
+    """
+    if not style_samples:
+        return prompt
+
+    examples = "\n\n".join(
+        f"<sample>{s}</sample>" for s in style_samples[:3]
+    )
+    style_section = STYLE_SECTION_TEMPLATE.format(
+        style_examples=examples
+    )
+    return style_section + "\n\n" + prompt
+
+
 __all__ = [
     "SUMMARIZE_TEMPLATE",
     "REPLY_TEMPLATE",
     "EXTRACT_ACTIONS_TEMPLATE",
     "CONFIRM_ACTION_TEMPLATE",
+    "STYLE_SECTION_TEMPLATE",
+    "summarize_email",
+    "generate_reply",
+    "extract_actions",
+    "format_confirm",
+    "inject_style",
+]
     "summarize_email",
     "generate_reply",
     "extract_actions",

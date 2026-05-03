@@ -37,6 +37,24 @@ _SCHEMA = {
             modifita_je TEXT NOT NULL
         )
     """,
+    "stiloj": """
+        CREATE TABLE stiloj (
+            uuid TEXT PRIMARY KEY,
+            sample_type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            source_email_uuid TEXT,
+            metadata TEXT,
+            created_at TEXT NOT NULL,
+            active INTEGER DEFAULT 1
+        )
+    """,
+    "stiloj_fts": """
+        CREATE VIRTUAL TABLE stiloj_fts USING fts5(
+            content,
+            content='stiloj',
+            content_rowid='rowid'
+        )
+    """,
 }
 
 _db: SQLiteDB | None = None
@@ -295,6 +313,151 @@ def delete_template(uuid: str) -> None:
     db.execute("DELETE FROM sablonoj WHERE uuid = ?", (uuid,))
 
 
+# ============================================================================
+# Style samples (stiloj) - with FTS5 search
+# ============================================================================
+
+
+def add_style_sample(
+    uuid: str,
+    sample_type: str,
+    content: str,
+    source_email_uuid: str | None = None,
+    metadata: str | None = None,
+) -> dict[str, Any]:
+    """Add a style sample.
+
+    Args:
+        uuid: Sample UUID
+        sample_type: 'reply' or 'summary'
+        content: The writing sample text
+        source_email_uuid: Source email UUID if applicable
+        metadata: JSON string with additional metadata
+
+    Returns:
+        Created sample dict
+    """
+    from datetime import datetime, timezone
+
+    db = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+
+    db.execute(
+        """INSERT INTO stiloj (uuid, sample_type, content, source_email_uuid, metadata, created_at, active)
+           VALUES (?, ?, ?, ?, ?, ?, 1)""",
+        (uuid, sample_type, content, source_email_uuid, metadata, now),
+    )
+
+    # Rebuild FTS index for this sample
+    db.execute(
+        "INSERT INTO stiloj_fts(rowid, content) SELECT rowid, content FROM stiloj WHERE uuid = ?",
+        (uuid,),
+    )
+
+    return {
+        "uuid": uuid,
+        "sample_type": sample_type,
+        "content": content,
+        "source_email_uuid": source_email_uuid,
+        "metadata": metadata,
+        "created_at": now,
+        "active": 1,
+    }
+
+
+def get_active_samples(sample_type: str | None = None, limit: int = 3) -> list[dict[str, Any]]:
+    """Get active style samples.
+
+    Args:
+        sample_type: Filter by type ('reply' or 'summary'), or None for all
+        limit: Max samples to return
+
+    Returns:
+        List of sample dicts
+    """
+    db = get_db()
+
+    if sample_type:
+        return db.execute(
+            "SELECT * FROM stiloj WHERE active = 1 AND sample_type = ? ORDER BY created_at DESC LIMIT ?",
+            (sample_type, limit),
+        )
+    return db.execute(
+        "SELECT * FROM stiloj WHERE active = 1 ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    )
+
+
+def list_style_samples() -> list[dict[str, Any]]:
+    """List all style samples.
+
+    Returns:
+        List of all sample dicts
+    """
+    db = get_db()
+    return db.execute("SELECT * FROM stiloj ORDER BY created_at DESC")
+
+
+def delete_style_sample(uuid: str) -> None:
+    """Delete a style sample.
+
+    Args:
+        uuid: Sample UUID
+    """
+    db = get_db()
+    db.execute("DELETE FROM stiloj WHERE uuid = ?", (uuid,))
+    db.execute("DELETE FROM stiloj_fts WHERE rowid IN (SELECT rowid FROM stiloj WHERE uuid = ?)", (uuid,))
+
+
+def set_sample_active(uuid: str, active: bool) -> None:
+    """Set sample active status.
+
+    Args:
+        uuid: Sample UUID
+        active: True to activate, False to deactivate
+    """
+    db = get_db()
+    db.execute("UPDATE stiloj SET active = ? WHERE uuid = ?", (1 if active else 0, uuid))
+
+
+def search_similar_samples(query: str, sample_type: str | None = None, limit: int = 3) -> list[dict[str, Any]]:
+    """Search style samples using FTS5 for similar content.
+
+    Args:
+        query: Search query text (e.g., email body to match against)
+        sample_type: Filter by type ('reply' or 'summary'), or None for all
+        limit: Max results
+
+    Returns:
+        List of matching sample dicts with scores
+    """
+    db = get_db()
+
+    # Use FTS5 MATCH for similarity search
+    if sample_type:
+        results = db.execute(
+            """SELECT s.*, rank 
+               FROM stiloj s 
+               JOIN stiloj_fts f ON s.rowid = f.rowid 
+               WHERE stiloj_fts MATCH ? AND s.sample_type = ?
+               ORDER BY rank 
+               LIMIT ?""",
+            (query, sample_type, limit),
+        )
+    else:
+        results = db.execute(
+            """SELECT s.*, rank 
+               FROM stiloj s 
+               JOIN stiloj_fts f ON s.rowid = f.rowid 
+               WHERE stiloj_fts MATCH ?
+               ORDER BY rank 
+               LIMIT ?""",
+            (query, limit),
+        )
+
+    return results
+
+
 __all__ = [
     "get_db",
     "close_db",
@@ -308,4 +471,11 @@ __all__ = [
     "list_templates",
     "update_template",
     "delete_template",
+    # Style samples (stiloj)
+    "add_style_sample",
+    "get_active_samples",
+    "list_style_samples",
+    "delete_style_sample",
+    "set_sample_active",
+    "search_similar_samples",
 ]
