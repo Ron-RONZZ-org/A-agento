@@ -293,18 +293,41 @@ def agu(
 
     # Confirm and execute each action
     for action in actions:
-        if _confirm_action(f"{action.action_type}: {action.title}"):
+        # Allow user to edit before confirmation
+        info(tr("Vi povas redakti antaŭ konfirmo. premu Enter por konservi."))
+
+        new_title = typer.prompt(
+            tr("Titolo"),  # Title
+            default=action.title,
+        )
+        new_details = typer.prompt(
+            tr("Detaloj"),  # Details
+            default=action.details,
+        )
+
+        # Update action with edited values
+        action.title = new_title
+        action.details = new_details
+
+        if _confirm_action(f"{action.action_type}: {new_title}"):
             if action.action_type == "calendar":
+                # Update metadata with edited values
+                action.metadata["title"] = new_title
+                action.metadata["description"] = new_details
                 result = agent.create_calendar_event(action.metadata)
                 if result:
                     success(tr("Kreita okazis."))  # Created event
 
             elif action.action_type == "todo":
+                action.metadata["title"] = new_title
+                action.metadata["description"] = new_details
                 result = agent.create_todo(action.metadata)
                 if result:
                     success(tr("Kreita tasko."))  # Created task
 
             elif action.action_type == "knowledge":
+                action.metadata["title"] = new_title
+                action.metadata["content"] = new_details
                 result = agent.create_knowledge_entry(action.metadata)
                 if result:
                     success(tr("Kreita sciento."))  # Created knowledge
