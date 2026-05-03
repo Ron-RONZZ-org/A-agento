@@ -541,8 +541,33 @@ class AgentService:
             "komenco": metadata.get("start", ""),
             "fino": metadata.get("end", ""),
             "priskribo": metadata.get("description", ""),
+            "loko": metadata.get("location", ""),
+            "ripeto": metadata.get("ripeto", ""),
         }
         return cal_service.create(event_data)
+
+    def _parse_remind_offset(self, remind_str: str) -> int | None:
+        """Parse reminder offset string to seconds.
+
+        Args:
+            remind_str: String like "15m", "1h", "1d"
+
+        Returns:
+            Negative seconds before event, or None if invalid
+        """
+        import re
+        match = re.match(r"^(\d+)(m|h|d)$", remind_str.strip().lower())
+        if not match:
+            return None
+        value = int(match.group(1))
+        unit = match.group(2)
+        if unit == "m":
+            return -value * 60
+        elif unit == "h":
+            return -value * 3600
+        elif unit == "d":
+            return -value * 86400
+        return None
 
     def create_todo(self, metadata: dict[str, Any]) -> dict[str, Any] | None:
         """Create todo (requires external confirmation).

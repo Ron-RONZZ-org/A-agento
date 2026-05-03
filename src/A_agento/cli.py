@@ -310,6 +310,18 @@ def agu(
                 tr("Fino (ISO+Z)"),  # End (ISO+Z)
                 default=action.metadata.get("end", ""),
             )
+            new_location = typer.prompt(
+                tr("Loko"),  # Location
+                default=action.metadata.get("location", ""),
+            )
+            new_ripeto = typer.prompt(
+                tr("Ripeto (FREQ=...)"),  # Recurrence
+                default=action.metadata.get("ripeto", ""),
+            )
+            new_remind = typer.prompt(
+                tr("Memorigu (15m/1h/1d)"),  # Reminder
+                default=action.metadata.get("remind", ""),
+            )
             new_desc = typer.prompt(
                 tr("Priskribo"),  # Description
                 default=action.metadata.get("description", action.details),
@@ -319,9 +331,21 @@ def agu(
             action.metadata["title"] = new_title
             action.metadata["start"] = new_start
             action.metadata["end"] = new_end
+            action.metadata["location"] = new_location
+            action.metadata["ripeto"] = new_ripeto
+            action.metadata["remind"] = new_remind
             action.metadata["description"] = new_desc
             action.title = new_title
-            action.details = f"{new_start} → {new_end}"
+
+            # Build details string
+            details_parts = [f"{new_start} → {new_end}"]
+            if new_location:
+                details_parts.append(f"loko: {new_location}")
+            if new_ripeto:
+                details_parts.append(f"ripeto: {new_ripeto}")
+            if new_remind:
+                details_parts.append(f"memorigu: {new_remind}")
+            action.details = ", ".join(details_parts)
 
             confirm_msg = f"kalend: {new_title} ({new_start} → {new_end})"
 

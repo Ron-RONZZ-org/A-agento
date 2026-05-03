@@ -43,7 +43,10 @@ When extracting actions from emails:
 - Return ONLY valid JSON, no extra text
 - Use ISO 8601 format for all dates (YYYY-MM-DDTHH:MMZ)
 - Return null for fields with no data
-- Only extract actions explicitly mentioned, never infer"""
+- Only extract actions explicitly mentioned, never infer
+- Extract location (physical address or meeting link) if mentioned
+- Extract recurrence pattern (FREQ=WEEKLY;BYDAY=MO) if mentioned
+- Extract reminder offset (15m, 1h, 1d) if mentioned"""
 
 # ============== STYLE INJECTION ==============
 STYLE_SECTION_TEMPLATE = """
@@ -96,18 +99,23 @@ Subject: {subject}
 Body: {body}
 
 Extract:
-1. Any dates/times mentioned → calendar event
+1. Any dates/times mentioned → calendar event (include location if found)
 2. Any tasks/delegate requests → todo
 3. Any new information → knowledge entry
 
 Respond in this JSON format:
 {{
-    "calendar": {{"title": "", "start": "", "end": "", "description": ""}} or null,
+    "calendar": {{"title": "", "start": "", "end": "", "description": "", "location": "", "ripeto": "", "remind": ""}} or null,
     "todo": {{"title": "", "due": "", "priority": ""}} or null,
     "knowledge": {{"title": "", "content": ""}} or null
 }}
 
-If nothing actionable, respond with null for all three fields."""
+If nothing actionable, respond with null for all three fields.
+
+Notes:
+- ripeto format: FREQ=DAILY, FREQ=WEEKLY;BYDAY=MO,WE,FR, FREQ=MONTHLY
+- remind format: 15m, 1h, 1d (offset before event)
+- location: physical address or meeting link (Zoom, Meet, etc.)"""
 
 # Action confirmation prompt
 CONFIRM_ACTION_TEMPLATE = """The AI has suggested the following action:
