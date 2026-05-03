@@ -110,9 +110,9 @@ def _get_encik_service():
     global _encik_service
     if _encik_service is None:
         try:
-            from A_encik.service import get_encik_service
+            from A_encik.service import get_service
 
-            _encik_service = get_encik_service()
+            _encik_service = get_service()
         except ImportError:
             pass
     return _encik_service
