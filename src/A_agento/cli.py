@@ -296,41 +296,98 @@ def agu(
         # Allow user to edit before confirmation
         info(tr("Vi povas redakti antaŭ konfirmo. premu Enter por konservi."))
 
-        new_title = typer.prompt(
-            tr("Titolo"),  # Title
-            default=action.title,
-        )
-        new_details = typer.prompt(
-            tr("Detaloj"),  # Details
-            default=action.details,
-        )
+        if action.action_type == "calendar":
+            # Calendar: edit ISO date fields
+            new_title = typer.prompt(
+                tr("Titolo"),  # Title
+                default=action.metadata.get("title", action.title),
+            )
+            new_start = typer.prompt(
+                tr("Komenco (ISO)"),  # Start (ISO)
+                default=action.metadata.get("start", ""),
+            )
+            new_end = typer.prompt(
+                tr("Fino (ISO)"),  # End (ISO)
+                default=action.metadata.get("end", ""),
+            )
+            new_desc = typer.prompt(
+                tr("Priskribo"),  # Description
+                default=action.metadata.get("description", action.details),
+            )
 
-        # Update action with edited values
-        action.title = new_title
-        action.details = new_details
+            # Update metadata
+            action.metadata["title"] = new_title
+            action.metadata["start"] = new_start
+            action.metadata["end"] = new_end
+            action.metadata["description"] = new_desc
+            action.title = new_title
+            action.details = f"{new_start} → {new_end}"
 
-        if _confirm_action(f"{action.action_type}: {new_title}"):
+            confirm_msg = f"kalend: {new_title} ({new_start} → {new_end})"
+
+        elif action.action_type == "todo":
+            # Todo: edit ISO due date
+            new_title = typer.prompt(
+                tr("Titolo"),  # Title
+                default=action.metadata.get("title", action.title),
+            )
+            new_due = typer.prompt(
+                tr("Limdato (ISO)"),  # Due date (ISO)
+                default=action.metadata.get("due", ""),
+            )
+            new_priority = typer.prompt(
+                tr("Prioritato"),  # Priority
+                default=action.metadata.get("priority", "normal"),
+            )
+            new_desc = typer.prompt(
+                tr("Priskribo"),  # Description
+                default=action.metadata.get("description", action.details),
+            )
+
+            # Update metadata
+            action.metadata["title"] = new_title
+            action.metadata["due"] = new_due
+            action.metadata["priority"] = new_priority
+            action.metadata["description"] = new_desc
+            action.title = new_title
+            action.details = f"due: {new_due}, priority: {new_priority}"
+
+            confirm_msg = f"todo: {new_title} (due: {new_due})"
+
+        else:
+            # Knowledge or other: edit title and content
+            new_title = typer.prompt(
+                tr("Titolo"),  # Title
+                default=action.title,
+            )
+            new_details = typer.prompt(
+                tr("Detaloj"),  # Details
+                default=action.details,
+            )
+            action.title = new_title
+            action.details = new_details
+            action.metadata["title"] = new_title
+            action.metadata["content"] = new_details
+            confirm_msg = f"{action.action_type}: {new_title}"
+
+        if _confirm_action(confirm_msg):
             if action.action_type == "calendar":
-                # Update metadata with edited values
-                action.metadata["title"] = new_title
-                action.metadata["description"] = new_details
                 result = agent.create_calendar_event(action.metadata)
                 if result:
                     success(tr("Kreita okazis."))  # Created event
 
             elif action.action_type == "todo":
-                action.metadata["title"] = new_title
-                action.metadata["description"] = new_details
                 result = agent.create_todo(action.metadata)
                 if result:
                     success(tr("Kreita tasko."))  # Created task
 
             elif action.action_type == "knowledge":
-                action.metadata["title"] = new_title
-                action.metadata["content"] = new_details
                 result = agent.create_knowledge_entry(action.metadata)
                 if result:
                     success(tr("Kreita sciento."))  # Created knowledge
+
+        else:
+            info(tr("Nuligita."))  # Cancelled
 
         else:
             info(tr("Nuligita."))  # Cancelled
