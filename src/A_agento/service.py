@@ -2,6 +2,8 @@
 
 Coordinates between LLM providers and A modules (email, calendar, todos, knowledge).
 
+Service contract with A-lien is documented in contract.py.
+
 Usage:
     from A_agento.service import get_agent_service
     
@@ -20,6 +22,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from A import info, error, tr, tr_multi
+
+from A_agento.contract import validate_email_dict
 
 
 # --- JSON extraction helper ---
@@ -188,10 +192,18 @@ class AgentService:
 
         # Try to use service API first
         try:
-            return lien.get(uuid)
+            email = lien.get(uuid)
         except (AttributeError, TypeError):
             # Service doesn't have get() method, use fallback
             return self._get_email_direct(uuid)
+
+        # Validate against contract
+        if email is not None:
+            is_valid, missing = validate_email_dict(email)
+            if not is_valid:
+                warning(tr(f"A-lien email mankas: {', '.join(missing)}"))
+
+        return email
 
     def _get_email_direct(self, uuid: str) -> dict[str, Any] | None:
         """Fallback: direct DB access when service API unavailable."""
@@ -257,10 +269,18 @@ class AgentService:
         # Try to use service API first
         try:
             # Try list_recent method
-            return lien.list_recent(limit=limit)
+            emails = lien.list_recent(limit=limit)
         except (AttributeError, TypeError):
             # Fallback to direct DB
             return self._list_recent_emails_direct(limit, unread_only)
+
+        # Validate first email against contract (sample check)
+        if emails:
+            is_valid, missing = validate_email_dict(emails[0])
+            if not is_valid:
+                warning(tr(f"A-lien emails mankas: {', '.join(missing)}"))
+
+        return emails
 
     def _list_recent_emails_direct(
         self,
