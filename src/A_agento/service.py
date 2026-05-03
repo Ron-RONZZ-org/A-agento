@@ -591,6 +591,105 @@ class AgentService:
         }
         return todo_service.create(todo_data)
 
+    def _resolve_refs(self, metadata: dict[str, Any]) -> list[str]:
+        """Resolve vt# and ec# references to full UUIDs.
+
+        Args:
+            metadata: Knowledge entry metadata
+
+        Returns:
+            List of resolved UUIDs
+        """
+        import re
+
+        resolved = []
+        text = json.dumps(metadata)
+
+        # Match vt# prefix (vorto reference)
+        vt_pattern = re.compile(r"vt#([a-f0-9]+)")
+        for match in vt_pattern.finditer(text):
+            prefix = match.group(1)
+            try:
+                from A_vorto.service import get_service
+
+                svc = get_service()
+                # Try to find by prefix - use list and take first match
+                entries = svc.list(limit=10)
+                for e in entries:
+                    if e.get("uuid", "").startswith(prefix):
+                        resolved.append(e["uuid"])
+                        break
+            except (ImportError, AttributeError):
+                pass
+
+        # Match ec# prefix (encik reference)
+        ec_pattern = re.compile(r"ec#([a-f0-9]+)")
+        for match in ec_pattern.finditer(text):
+            prefix = match.group(1)
+            try:
+                from A_encik.service import get_service
+
+                svc = get_service()
+                entries = svc.list(limit=10)
+                for e in entries:
+                    if e.get("uuid", "").startswith(prefix):
+                        resolved.append(e["uuid"])
+                        break
+            except (ImportError, AttributeError):
+                pass
+
+        return list(dict.fromkeys(resolved))  # Deduplicate
+
+    def _find_potential_links(
+        self, metadata: dict[str, Any]
+    ) -> list[str]:
+        """Find potential semantic links by keyword matching.
+
+        Args:
+            metadata: Knowledge entry metadata
+
+        Returns:
+            List of UUIDs that might be related
+        """
+        links = []
+        title = (metadata.get("title") or "").strip()
+        content = (metadata.get("content") or "").strip()
+
+        if not title:
+            return links
+
+        # Extract significant words (>3 chars) from title
+        words = set()
+        for word in title.split():
+            clean = (
+                word.strip(".,!?;:()[]{}").lower()
+            )
+            if len(clean) > 3:
+                words.add(clean)
+
+        if not words:
+            return links
+
+        # Search in A-encik
+        try:
+            from A_encik.service import get_service
+
+            svc = get_service()
+            entries = svc.list(limit=50)
+            for entry in entries:
+                entry_text = (
+                    entry.get("titolo", "") + " " + entry.get("enhavo", "")
+                ).lower()
+                # Check if any keyword matches
+                for word in words:
+                    if word in entry_text and entry.get("uuid") not in links:
+                        links.append(entry["uuid"])
+                        break
+        except (ImportError, AttributeError):
+            pass
+
+        return links[:10]  # Cap at 10 links
+
     def create_knowledge_entry(
         self, metadata: dict[str, Any]
     ) -> dict[str, Any] | None:
@@ -607,11 +706,34 @@ class AgentService:
             info(tr("A-encik ne estas instalita."))  # A-encik not installed
             return None
 
+        # 1. Resolve explicit vt#/ec# references
+        resolved = self._resolve_refs(metadata)
+
+        # 2. Find potential links from title keywords
+        potential = self._find_potential_links(metadata)
+
+        # 3. Merge links (explicit first, deduplicate)
+        ligilo = list(dict.fromkeys(resolved + potential))[:10]
+
+        # 4. Handle superklaso from metadata
+        superklaso = metadata.get("superklaso", [])
+        if isinstance(superklaso, str):
+            superklaso = [superklaso]
+
+        # 5. Build entry data with all fields
         entry_data = {
             "titolo": metadata.get("title", ""),
             "enhavo": metadata.get("content", ""),
         }
-        return encik_service.create(entry_data)
+        if ligilo:
+            entry_data["ligilo"] = ligilo
+        if superklaso:
+            entry_data["superklaso"] = superklaso
+
+        # 6. Create via encik service
+        result = encik_service.create(entry_data)
+
+        return result
 
 
 # Singleton

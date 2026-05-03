@@ -46,7 +46,8 @@ When extracting actions from emails:
 - Only extract actions explicitly mentioned, never infer
 - Extract location (physical address or meeting link) if mentioned
 - Extract recurrence pattern (FREQ=WEEKLY;BYDAY=MO) if mentioned
-- Extract reminder offset (15m, 1h, 1d) if mentioned"""
+- Extract reminder offset (15m, 1h, 1d) if mentioned
+- For knowledge entries, look for vt# or ec# references to existing entries"""
 
 # ============== STYLE INJECTION ==============
 STYLE_SECTION_TEMPLATE = """
@@ -107,7 +108,7 @@ Respond in this JSON format:
 {{
     "calendar": {{"title": "", "start": "", "end": "", "description": "", "location": "", "ripeto": "", "remind": ""}} or null,
     "todo": {{"title": "", "due": "", "priority": ""}} or null,
-    "knowledge": {{"title": "", "content": ""}} or null
+    "knowledge": {{"title": "", "content": "", "ligilo": [], "superklaso": []}} or null
 }}
 
 If nothing actionable, respond with null for all three fields.
@@ -115,7 +116,9 @@ If nothing actionable, respond with null for all three fields.
 Notes:
 - ripeto format: FREQ=DAILY, FREQ=WEEKLY;BYDAY=MO,WE,FR, FREQ=MONTHLY
 - remind format: 15m, 1h, 1d (offset before event)
-- location: physical address or meeting link (Zoom, Meet, etc.)"""
+- location: physical address or meeting link (Zoom, Meet, etc.)
+- knowledge.ligilo: list of UUIDs or vt#/ec# references to link to
+- knowledge.superklaso: list of parent category UUIDs"""
 
 # Action confirmation prompt
 CONFIRM_ACTION_TEMPLATE = """The AI has suggested the following action:

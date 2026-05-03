@@ -379,20 +379,35 @@ def agu(
             confirm_msg = f"todo: {new_title} (due: {new_due})"
 
         else:
-            # Knowledge or other: edit title and content
+            # Knowledge: edit title, content, ligilo, superklaso
             new_title = typer.prompt(
                 tr("Titolo"),  # Title
                 default=action.title,
             )
-            new_details = typer.prompt(
-                tr("Detaloj"),  # Details
+            new_content = typer.prompt(
+                tr("Enhavo"),  # Content
                 default=action.details,
             )
+            new_ligilo = typer.prompt(
+                tr("Ligilo (UUID-kompostaj)"),  # Links (comma-separated UUIDs)
+                default=",".join(action.metadata.get("ligilo", [])),
+            )
+            new_superklaso = typer.prompt(
+                tr("Superklaso (UUID-kompostaj)"),  # Parent categories
+                default=",".join(action.metadata.get("superklaso", [])),
+            )
+
             action.title = new_title
-            action.details = new_details
+            action.details = new_content
             action.metadata["title"] = new_title
-            action.metadata["content"] = new_details
-            confirm_msg = f"{action.action_type}: {new_title}"
+            action.metadata["content"] = new_content
+            action.metadata["ligilo"] = [
+                x.strip() for x in new_ligilo.split(",") if x.strip()
+            ]
+            action.metadata["superklaso"] = [
+                x.strip() for x in new_superklaso.split(",") if x.strip()
+            ]
+            confirm_msg = f"knowledge: {new_title}"
 
         if _confirm_action(confirm_msg):
             if action.action_type == "calendar":
