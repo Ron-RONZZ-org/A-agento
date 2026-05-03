@@ -21,6 +21,45 @@ from typing import Any
 
 from A import info, error, tr, tr_multi
 
+
+# --- JSON extraction helper ---
+
+
+def _extract_json(text: str) -> dict[str, Any] | None:
+    """Extract JSON from LLM response (handles markdown fences, leading text).
+
+    Args:
+        text: Raw LLM response text
+
+    Returns:
+        Parsed JSON dict or None if parsing fails
+    """
+    import re
+
+    # Try to find ```json ... ``` block first
+    if match := re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL):
+        text = match.group(1)
+
+    # Remove any leading/trailing non-JSON text
+    text = text.strip()
+
+    # Try direct parse
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+    # Last resort: find first { and last }
+    if (start := text.find("{")) != -1 and (end := text.rfind("}")) != -1:
+        try:
+            return json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    return None
+
+
 # Cross-module imports with runtime detection
 _a_lien = None
 _organizi_service = None
@@ -55,9 +94,15 @@ def _get_calendar_service():
 
 def _get_todo_service():
     """Get TodoService from A-organizi if available."""
-    from A_organizi.service import get_todo_service
+    global _organizi_service
+    if _organizi_service is None:
+        try:
+            from A_organizi.service import get_todo_service
 
-    return get_todo_service()
+            _organizi_service = get_todo_service()
+        except ImportError:
+            pass
+    return _organizi_service
 
 
 def _get_encik_service():
@@ -128,7 +173,7 @@ class AgentService:
     # --- Email fetching ---
 
     def get_email(self, uuid: str) -> dict[str, Any] | None:
-        """Get an email by UUID.
+        """Get an email by UUID via A-lien service.
 
         Args:
             uuid: Email UUID
@@ -136,19 +181,36 @@ class AgentService:
         Returns:
             Email dict or None
         """
-        from A_lien.data.storage import get_db
+        lien = _get_lien_service()
+        if lien is None:
+            # Fallback to direct DB access
+            return self._get_email_direct(uuid)
 
-        db = get_db()
-        return db.execute_one(
-            "SELECT * FROM mesagxoj WHERE uuid = ?", (uuid,)
-        )
+        # Try to use service API first
+        try:
+            return lien.get(uuid)
+        except (AttributeError, TypeError):
+            # Service doesn't have get() method, use fallback
+            return self._get_email_direct(uuid)
+
+    def _get_email_direct(self, uuid: str) -> dict[str, Any] | None:
+        """Fallback: direct DB access when service API unavailable."""
+        try:
+            from A_lien.data.storage import get_db
+
+            db = get_db()
+            return db.execute_one(
+                "SELECT * FROM mesagxoj WHERE uuid = ?", (uuid,)
+            )
+        except ImportError:
+            return None
 
     def list_recent_emails(
         self,
         limit: int = 10,
         unread_only: bool = False,
     ) -> list[dict[str, Any]]:
-        """List recent emails.
+        """List recent emails via A-lien service.
 
         Args:
             limit: Max emails
@@ -157,19 +219,41 @@ class AgentService:
         Returns:
             List of email dicts
         """
-        from A_lien.data.storage import get_db
+        lien = _get_lien_service()
+        if lien is None:
+            # Fallback to direct DB access
+            return self._list_recent_emails_direct(limit, unread_only)
 
-        db = get_db()
-        sql = "SELECT * FROM mesagxoj"
-        params = []
+        # Try to use service API first
+        try:
+            # Try list_recent method
+            return lien.list_recent(limit=limit)
+        except (AttributeError, TypeError):
+            # Fallback to direct DB
+            return self._list_recent_emails_direct(limit, unread_only)
 
-        if unread_only:
-            sql += " WHERE legita = 0"
+    def _list_recent_emails_direct(
+        self,
+        limit: int = 10,
+        unread_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Fallback: direct DB access when service API unavailable."""
+        try:
+            from A_lien.data.storage import get_db
 
-        sql += " ORDER BY ricevita_je DESC LIMIT ?"
-        params.append(limit)
+            db = get_db()
+            sql = "SELECT * FROM mesagxoj"
+            params = []
 
-        return db.execute(sql, params)
+            if unread_only:
+                sql += " WHERE legita = 0"
+
+            sql += " ORDER BY ricevita_je DESC LIMIT ?"
+            params.append(limit)
+
+            return db.execute(sql, params)
+        except ImportError:
+            return []
 
     # --- Summarization ---
 
@@ -299,10 +383,9 @@ class AgentService:
         # Generate JSON response
         response = provider.generate(prompt)
 
-        # Parse JSON
-        try:
-            actions = json.loads(response)
-        except json.JSONDecodeError:
+        # Parse JSON with robust extraction
+        actions = _extract_json(response)
+        if not actions:
             info(tr("Nepovis analizi la retpoŝton."))  # Could not parse email
             return []
 

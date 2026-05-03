@@ -149,7 +149,7 @@ def resumu(
             tipo="resumo",
             prompto=f"From: {summary.sender}\nSubject: {summary.subject}",
             respondon=summary.summary,
-            model=provider._model,
+            model=provider.model,
             provizanto=provider.name,
         )
 
@@ -217,7 +217,7 @@ def respondu(
         tipo="respondo",
         prompto=f"Reply to email {uuid}",
         respondon=reply,
-        model=provider._model,
+        model=provider.model,
         provizanto=provider.name,
     )
 
