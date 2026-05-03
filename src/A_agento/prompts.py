@@ -5,6 +5,7 @@ Provides reusable prompt templates for different tasks:
 - Smart reply generation
 - Action extraction (calendar, todo, encik)
 - Style injection for personalized output
+- System prompts for consistent LLM behavior
 """
 
 from __future__ import annotations
@@ -12,7 +13,39 @@ from __future__ import annotations
 from typing import Any
 
 
-# Style injection template
+# ============== SYSTEM PROMPTS ==============
+# Global system instructions for all operations
+
+SYSTEM_BASE = """You are an email assistant.
+- Always respond in the language of the user's request
+- Keep responses concise and actionable
+- Never make up information not present in the email
+- Use ISO 8601 format for all dates (YYYY-MM-DD or YYYY-MM-DDTHH:MMZ)"""
+
+SYSTEM_SUMMARIZE = f"""{SYSTEM_BASE}
+
+When summarizing emails:
+- Extract the key point in 2-3 sentences
+- Focus on what the sender wants or what's being communicated
+- Note any deadlines or action items mentioned"""
+
+SYSTEM_REPLY = f"""{SYSTEM_BASE}
+
+When generating replies:
+- Match the tone and formality of the original email
+- Address all questions or requests in the original
+- Keep it concise (2-4 sentences)
+- Include appropriate greeting and sign-off"""
+
+SYSTEM_ACTIONS = f"""{SYSTEM_BASE}
+
+When extracting actions from emails:
+- Return ONLY valid JSON, no extra text
+- Use ISO 8601 format for all dates (YYYY-MM-DDTHH:MMZ)
+- Return null for fields with no data
+- Only extract actions explicitly mentioned, never infer"""
+
+# ============== STYLE INJECTION ==============
 STYLE_SECTION_TEMPLATE = """
 <writing-style>
 The user's writing style, based on their past emails:
@@ -100,9 +133,9 @@ def summarize_email(
         body: Email body
 
     Returns:
-        Formatted prompt
+        Formatted prompt with system instructions
     """
-    return SUMMARIZE_TEMPLATE.format(
+    return f"{SYSTEM_SUMMARIZE}\n\n" + SUMMARIZE_TEMPLATE.format(
         sender=sender,
         recipient=recipient,
         subject=subject,
@@ -127,9 +160,9 @@ def generate_reply(
         tone: Tone (courteous/casual/formal)
 
     Returns:
-        Formatted prompt
+        Formatted prompt with system instructions
     """
-    return REPLY_TEMPLATE.format(
+    return f"{SYSTEM_REPLY}\n\n" + REPLY_TEMPLATE.format(
         sender=sender,
         subject=subject,
         body=body[:1500],
@@ -151,9 +184,9 @@ def extract_actions(
         body: Email body
 
     Returns:
-        Formatted prompt
+        Formatted prompt with system instructions
     """
-    return EXTRACT_ACTIONS_TEMPLATE.format(
+    return f"{SYSTEM_ACTIONS}\n\n" + EXTRACT_ACTIONS_TEMPLATE.format(
         sender=sender,
         subject=subject,
         body=body[:2000],
