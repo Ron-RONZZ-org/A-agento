@@ -522,7 +522,7 @@ def stilo_forigu(
 
 @app.command("stilo-aktiva")
 def stilo_aktiva(
-    uuid: str = typer.Argument(..., help="Sample UUID"),
+    uuid: str = typer.Argument(..., help=tr_multi("Specimena UUID", "Sample UUID", "UUID exemple")),
     activa: bool = typer.Option(True, "--aktiva/--malaktiva"),
 ) -> None:
     """Activate or deactivate a style sample."""
