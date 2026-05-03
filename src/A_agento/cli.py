@@ -297,17 +297,17 @@ def agu(
         info(tr("Vi povas redakti antaŭ konfirmo. premu Enter por konservi."))
 
         if action.action_type == "calendar":
-            # Calendar: edit ISO date fields
+            # Calendar: edit ISO date fields with timezone
             new_title = typer.prompt(
                 tr("Titolo"),  # Title
                 default=action.metadata.get("title", action.title),
             )
             new_start = typer.prompt(
-                tr("Komenco (ISO)"),  # Start (ISO)
+                tr("Komenco (ISO+Z)"),  # Start (ISO+Z)
                 default=action.metadata.get("start", ""),
             )
             new_end = typer.prompt(
-                tr("Fino (ISO)"),  # End (ISO)
+                tr("Fino (ISO+Z)"),  # End (ISO+Z)
                 default=action.metadata.get("end", ""),
             )
             new_desc = typer.prompt(
@@ -332,7 +332,7 @@ def agu(
                 default=action.metadata.get("title", action.title),
             )
             new_due = typer.prompt(
-                tr("Limdato (ISO)"),  # Due date (ISO)
+                tr("Limdato (ISO+Z)"),  # Due date (ISO+Z)
                 default=action.metadata.get("due", ""),
             )
             new_priority = typer.prompt(
