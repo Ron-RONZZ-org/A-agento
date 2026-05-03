@@ -351,6 +351,15 @@ class AgentService:
                 body=email.get("korpo", ""),
             )
 
+            # Inject style samples if available
+            from A_agento.prompts import inject_style
+            from A_agento.data.storage import search_similar_samples
+            email_content = f"{email.get('subjekto', '')} {email.get('korpo', '')}"
+            similar = search_similar_samples(email_content, sample_type="summary", limit=2)
+            if similar:
+                style_samples = [s["content"] for s in similar]
+                prompt = inject_style(prompt, style_samples)
+
             # Generate summary
             summary = provider.generate(prompt)
 
@@ -388,7 +397,8 @@ class AgentService:
         Returns:
             Generated reply draft or None
         """
-        from A_agento.prompts import generate_reply
+        from A_agento.prompts import generate_reply, inject_style
+        from A_agento.data.storage import get_active_samples_by_type, search_similar_samples
 
         email = self.get_email(email_uuid)
         if not email:
@@ -403,6 +413,13 @@ class AgentService:
             tone=tone,
             relationship=relationship,
         )
+
+        # Inject style samples if available
+        email_content = f"{email.get('subjekto', '')} {email.get('korpo', '')}"
+        similar = search_similar_samples(email_content, sample_type="reply", limit=3)
+        if similar:
+            style_samples = [s["content"] for s in similar]
+            prompt = inject_style(prompt, style_samples)
 
         # Generate reply
         return provider.generate(prompt)
