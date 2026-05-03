@@ -205,6 +205,36 @@ class AgentService:
         except ImportError:
             return None
 
+    def _check_email_accounts(self) -> bool:
+        """Check if any email accounts are configured.
+
+        Returns:
+            True if accounts exist, False otherwise
+        """
+        try:
+            from A_lien.data.storage import get_db
+
+            db = get_db()
+            accounts = db.execute_one("SELECT COUNT(*) as count FROM kontoj")
+            return accounts and accounts.get("count", 0) > 0
+        except ImportError:
+            return False
+
+    def _check_emails_exist(self) -> bool:
+        """Check if any emails exist in the database.
+
+        Returns:
+            True if emails exist, False otherwise
+        """
+        try:
+            from A_lien.data.storage import get_db
+
+            db = get_db()
+            result = db.execute_one("SELECT COUNT(*) as count FROM mesagxoj")
+            return result and result.get("count", 0) > 0
+        except ImportError:
+            return False
+
     def list_recent_emails(
         self,
         limit: int = 10,
@@ -275,9 +305,36 @@ class AgentService:
         """
         from A_agento.prompts import summarize_email
 
+        # Check if A-lien is installed
+        lien = _get_lien_service()
+        if lien is None and not self._check_email_accounts():
+            info(
+                tr_multi(
+                    "Neniu retpoŝta konto estas agordita. Uzu 'A lien retposto aldoni-konton'.",  # eo
+                    "No email accounts configured. Use 'A lien retposto aldoni-konton'.",  # en
+                    "Aucun compte email configuré. Utilisez 'A lien retposto aldoni-konton'.",  # fr
+                )
+            )
+            return []
+
         emails = self.list_recent_emails(limit=limit, unread_only=unread_only)
         if not emails:
-            info(tr("Neniuj ne-legitaj retpoŝtoj."))  # No unread emails
+            if unread_only:
+                info(
+                    tr_multi(
+                        "Neniuj ne-legitaj retpoŝtoj.",  # eo
+                        "No unread emails.",  # en
+                        "Aucun email non lu.",  # fr
+                    )
+                )
+            else:
+                info(
+                    tr_multi(
+                        "Neniuj retpoŝtoj. Provu synkronigi kun 'A lien retposto preni'.",  # eo
+                        "No emails. Try syncing with 'A lien retposto preni'.",  # en
+                        "Aucun email. Essayez de synchroniser avec 'A lien retposto preni'.",  # fr
+                    )
+                )
             return []
 
         summaries = []
