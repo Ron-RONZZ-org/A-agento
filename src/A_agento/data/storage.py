@@ -420,6 +420,35 @@ def set_sample_active(uuid: str, active: bool) -> None:
     db.execute("UPDATE stiloj SET active = ? WHERE uuid = ?", (1 if active else 0, uuid))
 
 
+def _sanitize_fts_query(text: str) -> str:
+    """Sanitize input text for FTS5 MATCH query.
+
+    FTS5 does not support punctuation in queries. This extracts only
+    alphanumeric tokens (words) and joins them with OR so partial matches
+    still work.
+
+    Args:
+        text: Raw input text (e.g. email body)
+
+    Returns:
+        Sanitized FTS5 query string
+    """
+    import re
+
+    tokens = re.findall(r"[a-zA-Z0-9]+", text)
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    unique: list[str] = []
+    for t in tokens:
+        lower = t.lower()
+        if lower not in seen:
+            seen.add(lower)
+            unique.append(t)
+    if not unique:
+        return ""
+    return " OR ".join(unique)
+
+
 def search_similar_samples(query: str, sample_type: str | None = None, limit: int = 3) -> list[dict[str, Any]]:
     """Search style samples using FTS5 for similar content.
 
@@ -433,6 +462,10 @@ def search_similar_samples(query: str, sample_type: str | None = None, limit: in
     """
     db = get_db()
 
+    fts_query = _sanitize_fts_query(query)
+    if not fts_query:
+        return []
+
     # Use FTS5 MATCH for similarity search
     if sample_type:
         results = db.execute(
@@ -442,7 +475,7 @@ def search_similar_samples(query: str, sample_type: str | None = None, limit: in
                WHERE stiloj_fts MATCH ? AND s.sample_type = ?
                ORDER BY rank 
                LIMIT ?""",
-            (query, sample_type, limit),
+            (fts_query, sample_type, limit),
         )
     else:
         results = db.execute(
@@ -452,7 +485,7 @@ def search_similar_samples(query: str, sample_type: str | None = None, limit: in
                WHERE stiloj_fts MATCH ?
                ORDER BY rank 
                LIMIT ?""",
-            (query, limit),
+            (fts_query, limit),
         )
 
     return results

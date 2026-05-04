@@ -428,9 +428,6 @@ def agu(
         else:
             info(tr("Nuligita."))  # Cancelled
 
-        else:
-            info(tr("Nuligita."))  # Cancelled
-
 
 # --- Style commands ---
 
@@ -536,9 +533,9 @@ def agordo(
     provizanto: str = typer.Argument(
         ...,
         help=tr_multi(
-            "Provizanto (openai/ollama)",  # eo
-            "Provider (openai/ollama)",  # en
-            "Fournisseur (openai/ollama)",  # fr
+            "Provizanto (huggingface/deepseek/openai/ollama)",  # eo
+            "Provider (huggingface/deepseek/openai/ollama)",  # en
+            "Fournisseur (huggingface/deepseek/openai/ollama)",  # fr
         ),
     ),
 ) -> None:

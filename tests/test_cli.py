@@ -39,13 +39,18 @@ class TestResumuCommand:
         # Should complete without error (may show "no emails" message)
         assert result.exit_code == 0
 
+    @patch("A_agento.cli.get_agent_service")
     @patch("A_agento.cli.get_provider")
-    def test_resumu_provider_option(self, mock_provider):
+    def test_resumu_provider_option(self, mock_provider, mock_agent):
         """Test resumu with explicit provider."""
         mock_provider_instance = Mock()
         mock_provider_instance.name = "test"
         mock_provider_instance.model = "test-model"
         mock_provider.return_value = mock_provider_instance
+
+        mock_agent_instance = Mock()
+        mock_agent_instance.summarize_emails.return_value = []
+        mock_agent.return_value = mock_agent_instance
 
         result = runner.invoke(app, ["resumu", "--provizanto", "test"])
         assert result.exit_code == 0

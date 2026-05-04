@@ -1,4 +1,4 @@
-"""Service contract between A-agento and A-lien.
+'''Service contract between A-agento and A-lien.
 
 This module documents the expected interface for A-lien's RetpostoService.
 A-agento depends on these methods being available.
@@ -11,51 +11,18 @@ A-agento depends on these methods being available.
 class RetpostoService:
     def get(self, uuid: str) -> dict | None:
         """Get a single email by UUID.
-
-        Returns:
-            dict with keys:
-            - uuid: str
-            - de: str (sender)
-            - al: str (recipients, JSON array)
-            - subjekto: str (subject)
-            - korpo: str (body)
-            - ricevita_je: str (ISO timestamp)
-            - legita: int (0 or 1)
-            - etc.
-
-        Returns None if not found.
+        ...
         """
 
     def list(self, limit: int = 50, unread_only: bool = False) -> list[dict]:
         """List recent emails.
-
-        Args:
-            limit: Maximum emails to return
-            unread_only: Only return unread emails
-
-        Returns:
-            List of email dicts (same keys as get())
+        ...
         """
 ```
 
 ### Fallback: Direct DB Access
 
-If RetpostoService is not available, A-agento falls back to direct SQL:
-
-```python
-from A_lien.data.storage import get_db
-
-db = get_db()
-# Get single email
-email = db.execute_one(
-    "SELECT * FROM mesagxoj WHERE uuid = ?", (uuid,)
-)
-# List emails
-emails = db.execute(
-    "SELECT * FROM mesagxoj ORDER BY ricevita_je DESC LIMIT ?",
-    (limit,)
-)
-```
+If RetpostoService is not available, A-agento falls back to direct SQL.
 
 ### Expected Schema: mesagxoj table
 
@@ -73,7 +40,7 @@ emails = db.execute(
 
 - A-lien >= 1.0.0: Full service API
 - A-lien < 1.0.0: Use fallback direct DB access
-"""
+'''
 
 from __future__ import annotations
 

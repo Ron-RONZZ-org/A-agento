@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from A import info, error, tr, tr_multi
+from A import info, warning, error, tr, tr_multi
 
 from A_agento.contract import validate_email_dict
 
@@ -418,7 +418,7 @@ class AgentService:
             Generated reply draft or None
         """
         from A_agento.prompts import generate_reply, inject_style
-        from A_agento.data.storage import get_active_samples_by_type, search_similar_samples
+        from A_agento.data.storage import search_similar_samples
 
         email = self.get_email(email_uuid)
         if not email:
