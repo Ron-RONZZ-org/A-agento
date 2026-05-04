@@ -55,6 +55,18 @@ _SCHEMA = {
             content_rowid='rowid'
         )
     """,
+    "provizanto_agordoj": """
+        CREATE TABLE provizanto_agordoj (
+            provider TEXT NOT NULL,
+            profile TEXT NOT NULL DEFAULT 'default',
+            noto TEXT DEFAULT '',
+            modelo TEXT DEFAULT '',
+            base_url TEXT DEFAULT '',
+            kreita_je TEXT NOT NULL,
+            modifita_je TEXT NOT NULL,
+            PRIMARY KEY (provider, profile)
+        )
+    """,
 }
 
 _db: SQLiteDB | None = None
@@ -491,6 +503,8 @@ def search_similar_samples(query: str, sample_type: str | None = None, limit: in
     return results
 
 
+# ============================================================================
+# Provider configuration (provizanto_agordoj)
 __all__ = [
     "get_db",
     "close_db",

@@ -32,13 +32,23 @@ All cross-module imports use try/except with graceful fallback.
 
 ```
 src/A_agento/
-├── __init__.py       # exports: app
-├── cli.py           # Typer app with commands
-├── service.py      # AgentService orchestration
-├── prompts.py    # Prompt templates
+├── __init__.py           # exports: app
+├── cli.py               # Typer app (resumu, respondu, agu)
+├── agordo.py            # Provider config sub-app (default, sxlosilo, montri, testi)
+├── stilo.py             # Style sample sub-app (aldoni, listo, forigu, aktiva)
+├── service.py           # AgentService orchestration
+├── prompts.py           # Prompt templates
+├── contract.py          # Service contract with A-lien
 └── data/
-    └── storage.py # SQLite for agent metadata
+    ├── __init__.py
+    ├── storage.py        # SQLite for agent metadata + history + styloj
+    └── provider_config.py # Provider metadata storage (non-secret config)
 ```
+
+### Sub-app Groups
+
+- `agento agordo` — Provider configuration (default, sxlosilo, montri, testi)
+- `agento stilo` — Writing style samples (aldoni, listo, forigu, aktiva)
 
 ## Security Rules
 

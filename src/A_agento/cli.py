@@ -8,23 +8,18 @@ Commands:
 
 from __future__ import annotations
 
-import uuid
 from typing import Optional
 
 import typer
 
 from A import tr, tr_multi, info, error, success
-from A.core.ai import get_provider, set_default_provider, get_default_provider
+from A.core.ai import get_provider
 
 # Import services
 from A_agento.service import get_agent_service, EmailSummary, ActionSuggestion
 from A_agento.data import add_history
-from A_agento.data.storage import (
-    add_style_sample,
-    list_style_samples,
-    delete_style_sample,
-    set_sample_active,
-)
+from A_agento.agordo import agordo_app
+from A_agento.stilo import stilo_app
 
 app = typer.Typer(
     name="agento",
@@ -34,6 +29,8 @@ app = typer.Typer(
         "A-agento — Agent email IA avec LLM",  # fr
     ),
 )
+app.add_typer(agordo_app)
+app.add_typer(stilo_app)
 
 
 def _get_provider(
@@ -427,130 +424,6 @@ def agu(
 
         else:
             info(tr("Nuligita."))  # Cancelled
-
-
-# --- Style commands ---
-
-
-@app.command("stilo")
-def stilo(
-    substilo: str = typer.Argument(
-        ...,
-        help=tr_multi(
-            "Specimo-tipo (reply/summary)",  # eo
-            "Sample type (reply/summary)",  # en
-            "Type d'échantillon (reply/summary)",  # fr
-        ),
-    ),
-    enhavo: str = typer.Argument(
-        ...,
-        help=tr_multi(
-            "Teksto de la specimo",  # eo
-            "Sample text",  # en
-            "Texte de l'échantillon",  # fr
-        ),
-    ),
-) -> None:
-    """Register a user writing style sample.
-
-    Examples:
-        agento stilo reply "Sure, let's sync up next week — I'll send a calendar invite."
-        agento stilo summary "Quick update: project on track, ETA Friday."
-    """
-    valid_types = ("reply", "summary")
-    if substilo not in valid_types:
-        error(tr(f"Nevalida tipo. Uzu: {', '.join(valid_types)}"))
-        raise typer.Exit(1)
-
-    sample_uuid = str(uuid.uuid4())[:8]
-    add_style_sample(
-        uuid=sample_uuid,
-        sample_type=substilo,
-        content=enhavo,
-    )
-    success(tr("Specimo aldonita."))  # Sample added
-
-
-@app.command("stilo-listo")
-def stilo_listo() -> None:
-    """List registered style samples."""
-    from rich.console import Console
-    from rich.table import Table
-
-    console = Console()
-    samples = list_style_samples()
-
-    if not samples:
-        info(tr("Neniuj specimoj."))  # No samples
-        return
-
-    table = Table(title=tr("Stilo-specimoj"))
-    table.add_column("UUID", style="cyan")
-    table.add_column("Tipo", style="magenta")
-    table.add_column("Enhavo", style="white")
-    table.add_column("Aktiva", style="green")
-
-    for s in samples:
-        table.add_row(
-            s["uuid"],
-            s["sample_type"],
-            s["content"][:50] + "..." if len(s["content"]) > 50 else s["content"],
-            "✓" if s["active"] else "✗",
-        )
-
-    console.print(table)
-
-
-@app.command("stilo-forigu")
-def stilo_forigu(
-    uuid: str = typer.Argument(
-        ...,
-        help=tr_multi(
-            "Specimo UUID",  # eo
-            "Sample UUID",  # en
-            "UUID de l'échantillon",  # fr
-        ),
-    ),
-) -> None:
-    """Remove a style sample."""
-    delete_style_sample(uuid)
-    success(tr("Specimo forigita."))  # Sample deleted
-
-
-@app.command("stilo-aktiva")
-def stilo_aktiva(
-    uuid: str = typer.Argument(..., help=tr_multi("Specimena UUID", "Sample UUID", "UUID exemple")),
-    activa: bool = typer.Option(True, "--aktiva/--malaktiva"),
-) -> None:
-    """Activate or deactivate a style sample."""
-    set_sample_active(uuid, activa)
-    status = "aktiva" if activa else "malaktiva"
-    success(f"Specimo {status}.")  # Sample activated/deactivated
-
-
-@app.command("agordo")
-def agordo(
-    provizanto: str = typer.Argument(
-        ...,
-        help=tr_multi(
-            "Provizanto (huggingface/deepseek/openai/ollama)",  # eo
-            "Provider (huggingface/deepseek/openai/ollama)",  # en
-            "Fournisseur (huggingface/deepseek/openai/ollama)",  # fr
-        ),
-    ),
-) -> None:
-    """Set default LLM provider.
-
-    Examples:
-        agento agordo ollama
-        agento agordo openai
-    """
-    try:
-        set_default_provider(provizanto)
-        success(tr("Ĝisdatigita."))  # Updated
-    except ValueError as e:
-        error(str(e))
-        raise typer.Exit(1) from e
 
 
 # Make module callable as CLI
