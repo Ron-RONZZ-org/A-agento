@@ -5,7 +5,7 @@ Sub-app for the `agordo` command group.
 Commands:
 - default: Set default LLM provider
 - sxlosilo: Configure API key for a provider
-- montri: Show current provider configuration
+- ls: Show current provider configuration
 - testi: Test provider connectivity
 """
 
@@ -258,8 +258,8 @@ def sxlosilo(
 # ── montri — show configuration ───────────────────────────────────────────
 
 
-@agordo_app.command("montri")
-def montri() -> None:
+@agordo_app.command("ls")
+def agordo_ls() -> None:
     """Show current provider configuration.
 
     Displays the default provider, all configured API keys (masked),
@@ -268,7 +268,7 @@ def montri() -> None:
     API keys are NEVER displayed in full — only the last 4 characters.
 
     Examples:
-        agento agordo montri
+        agento agordo ls
     """
     from rich.console import Console
     from rich.table import Table
@@ -328,6 +328,12 @@ def montri() -> None:
         )
 
     console.print(table)
+
+
+@agordo_app.command("montri", hidden=True)
+def montri() -> None:
+    """[DEPRECATED] Use 'agordo ls' instead."""
+    agordo_ls()
 
 
 # ── testi — test provider connectivity ────────────────────────────────────

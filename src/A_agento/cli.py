@@ -2,7 +2,7 @@
 
 Commands:
 - resumu: Summarize recent emails
-- respondu: Generate smart reply draft
+- respondi: Generate smart reply draft
 - agu: Extract actions from email
 """
 
@@ -160,8 +160,8 @@ def resumu(
     success(tr("Finita."))  # Done
 
 
-@app.command("respondu")
-def respondu(
+@app.command("respondi")
+def respondi(
     uuid: str = typer.Argument(
         ...,
         help=tr_multi(
@@ -226,6 +226,41 @@ def respondu(
     )
 
     success(tr("Finita."))  # Done
+
+
+@app.command("respondu", hidden=True)
+def respondu(
+    uuid: str = typer.Argument(
+        ...,
+        help=tr_multi(
+            "Retpoŝta UUID",  # eo
+            "Email UUID",  # en
+            "UUID de l'email",  # fr
+        ),
+    ),
+    tono: str = typer.Option(
+        "courteous",
+        "--tono",
+        "-t",
+        help=tr_multi(
+            "Tono (courteous/casual/formal)",  # eo
+            "Tone (courteous/casual/formal)",  # en
+            "Ton (courteous/casual/formal)",  # fr
+        ),
+    ),
+    provizanto: Optional[str] = typer.Option(
+        None,
+        "--provizanto",
+        "-p",
+        help=tr_multi(
+            "LLM provizanto",  # eo
+            "LLM provider",  # en
+            "Fournisseur LLM",  # fr
+        ),
+    ),
+) -> None:
+    """[DEPRECATED] Use 'agento respondi' instead."""
+    respondi(uuid, tono=tono, provizanto=provizanto)
 
 
 @app.command("agu")

@@ -131,10 +131,10 @@ class TestMontriCommand:
     """Tests for `agordo montri`."""
 
     def test_montri_shows_help(self):
-        """Test montri subcommand shows help."""
-        result = runner.invoke(app, ["agordo", "montri", "--help"])
+        """Test ls (formerly montri) subcommand shows help."""
+        result = runner.invoke(app, ["agordo", "ls", "--help"])
         assert result.exit_code == 0
-        assert "montri" in result.output.lower()
+        assert "ls" in result.output.lower()
 
     @patch("A_agento.agordo.list_provider_configs")
     @patch("A_agento.agordo.get_default_provider")
@@ -226,5 +226,5 @@ class TestAgordoGroup:
         assert result.exit_code == 0
         assert "default" in result.output
         assert "sxlosilo" in result.output
-        assert "montri" in result.output
+        assert "ls" in result.output
         assert "testi" in result.output
