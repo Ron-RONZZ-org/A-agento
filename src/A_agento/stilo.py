@@ -67,8 +67,8 @@ def aldoni(
     success(tr("Specimo aldonita."))  # Sample added
 
 
-@stilo_app.command("listo")
-def listo() -> None:
+@stilo_app.command("ls")
+def stilo_ls() -> None:
     """List registered style samples."""
     from rich.console import Console
     from rich.table import Table
@@ -97,8 +97,14 @@ def listo() -> None:
     console.print(table)
 
 
-@stilo_app.command("forigu")
-def forigu(
+@stilo_app.command("listo", hidden=True)
+def listo() -> None:
+    """[DEPRECATED] Use 'stilo ls' instead."""
+    stilo_ls()
+
+
+@stilo_app.command("forigi")
+def forigi(
     uuid: str = typer.Argument(
         ...,
         help=tr_multi(
@@ -111,6 +117,21 @@ def forigu(
     """Remove a style sample."""
     delete_style_sample(uuid)
     success(tr("Specimo forigita."))  # Sample deleted
+
+
+@stilo_app.command("forigu", hidden=True)
+def forigu(
+    uuid: str = typer.Argument(
+        ...,
+        help=tr_multi(
+            "Specimo UUID",  # eo
+            "Sample UUID",  # en
+            "UUID de l'échantillon",  # fr
+        ),
+    ),
+) -> None:
+    """[DEPRECATED] Use 'stilo forigi' instead."""
+    forigi(uuid)
 
 
 @stilo_app.command("aktiva")
