@@ -77,9 +77,9 @@ def vidi(
     """Show detailed configuration for a single provider or profile.
 
     Examples:
-        agento agordo vidi openai
-        agento agordo vidi openai:work
-        agento agordo vidi a1b2c3d4-...
+        agento agordi vidi openai
+        agento agordi vidi openai:work
+        agento agordi vidi a1b2c3d4-...
     """
     from rich.console import Console
     from rich.table import Table
@@ -144,8 +144,8 @@ def modifi(
     If no options are provided, runs interactively with current values.
 
     Examples:
-        agento agordo modifi openai --key sk-new
-        agento agordo modifi openai:work --modelo gpt-4
+        agento agordi modifi openai --key sk-new
+        agento agordi modifi openai:work --modelo gpt-4
     """
     config = _find_config(provizanto)
     if config is None:
@@ -224,9 +224,9 @@ def _maybe_reassign_default(deleted_provider: str) -> None:
         ))
     else:
         warning(tr_multi(
-            "La implicita provizanto estis forigita. Uzu 'agordo default' por agordi novan.",
-            "The default provider was deleted. Use 'agordo default' to set a new one.",
-            "Le fournisseur par defaut a ete supprime. Utilisez 'agordo default' pour en definir un nouveau.",
+            "La implicita provizanto estis forigita. Uzu 'agordi default' por agordi novan.",
+            "The default provider was deleted. Use 'agordi default' to set a new one.",
+            "Le fournisseur par defaut a ete supprime. Utilisez 'agordi default' pour en definir un nouveau.",
         ))
 
 
@@ -284,9 +284,9 @@ def forigi(
     or "provider:profile" syntax.
 
     Examples:
-        agento agordo forigi openai
-        agento agordo forigi openai:work deepseek
-        agento agordo forigi a1b2c3d4-... openai:personal -y
+        agento agordi forigi openai
+        agento agordi forigi openai:work deepseek
+        agento agordi forigi a1b2c3d4-... openai:personal -y
     """
     if not jes and len(provizantoj) > 1:
         confirm = typer.confirm(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from A import tr_multi
+from A import tr_multi, warning as _warn
 from A_agento.agordo import agordo_app
 from A_agento.stilo import stilo_app
 from A_agento.commands.email import resumu, respondi, agu
@@ -22,6 +22,22 @@ app = typer.Typer(
 )
 app.add_typer(agordo_app)
 app.add_typer(stilo_app)
+
+
+@app.command("agordo", hidden=True, help=tr_multi(
+    "[Malrekomendita] Uzu 'agento agordi' anstatauxe",  # eo
+    "[DEPRECATED] Use 'agento agordi' instead",  # en
+    "[Deprecie] Utilisez 'agento agordi' a la place",  # fr
+))
+def agordo_deprecated() -> None:
+    """[DEPRECATED] Use 'agento agordi' instead."""
+    _warn(
+        tr_multi(
+            "'agordo' estas eksdata. Uzu 'agento agordi'.",
+            "'agordo' is deprecated. Use 'agento agordi'.",
+            "'agordo' est obsolète. Utilisez 'agento agordi'.",
+        )
+    )
 
 # Register AI commands
 app.command(

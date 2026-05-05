@@ -2,9 +2,9 @@
 
 Sub-app for the `agordo` command group.
 
-Commands:
+Commands (run via `agento agordi <command>`):
 - default: Set default LLM provider
-- aldoni: Add API key for a provider (renamed from slosilo)
+- aldoni: Add API key for a provider
 - vidi: View single provider configuration
 - modifi: Update existing provider configuration
 - forigi: Delete provider configuration
@@ -30,7 +30,7 @@ from A_agento.agordo_crud import vidi, modifi, forigi
 # ── Sub-app definition ────────────────────────────────────────────────────
 
 agordo_app = typer.Typer(
-    name="agordo",
+    name="agordi",
     help=tr_multi(
         "Agordi A-agento-provizanton kaj ŝlosilojn",  # eo
         "Configure A-agento provider and API keys",  # en
@@ -102,7 +102,7 @@ def aldoni(
 ) -> None:
     """Add an API key for a provider. Stores key in system keyring, metadata in SQLite."""
     if provizanto == "ollama":
-        warning(tr_multi("Ollama ne bezonas API-ŝlosilon. Uzu 'agordo default ollama'.", "Ollama does not need an API key. Use 'agordo default ollama'.", "Ollama n'a pas besoin de clé API. Utilisez 'agordo default ollama'."))
+        warning(tr_multi("Ollama ne bezonas API-ŝlosilon. Uzu 'agordi default ollama'.", "Ollama does not need an API key. Use 'agordi default ollama'.", "Ollama n'a pas besoin de clé API. Utilisez 'agordi default ollama'."))
         return
 
     # Interactive mode: if no key provided, prompt for all options
@@ -162,7 +162,7 @@ agordo_app.command(
 
 
 @agordo_app.command("slosilo", hidden=True, help=tr_multi(
-    "[Eksdata] Uzu 'agordo aldoni' anstatauxe", "[DEPRECATED] Use 'agordo aldoni' instead", "[Obsolète] Utilisez 'agordo aldoni' à la place",
+    "[Eksdata] Uzu 'agordi aldoni' anstatauxe", "[DEPRECATED] Use 'agordi aldoni' instead", "[Obsolète] Utilisez 'agordi aldoni' à la place",
 ))
 def slosilo_deprecated(
     provizanto: str = typer.Argument(...),
@@ -171,13 +171,13 @@ def slosilo_deprecated(
     noto: Optional[str] = typer.Option(None, "--noto", "-n"),
     modelo: Optional[str] = typer.Option(None, "--modelo", "-m"),
 ) -> None:
-    """[DEPRECATED] Use 'agordo aldoni' instead."""
-    warning(tr_multi("'agordo slosilo' estas eksdata. Uzu 'agordo aldoni'.", "'agordo slosilo' is deprecated. Use 'agordo aldoni'.", "'agordo slosilo' est obsolète. Utilisez 'agordo aldoni'."))
+    """[DEPRECATED] Use 'agordi aldoni' instead."""
+    warning(tr_multi("'agordi slosilo' estas eksdata. Uzu 'agordi aldoni'.", "'agordi slosilo' is deprecated. Use 'agordi aldoni'.", "'agordi slosilo' est obsolète. Utilisez 'agordi aldoni'."))
     aldoni(provizanto, key=key, base_url=base_url, noto=noto, modelo=modelo)
 
 
 @agordo_app.command("sxlosilo", hidden=True, help=tr_multi(
-    "[Eksdata] Uzu 'agordo aldoni' anstatauxe", "[DEPRECATED] Use 'agordo aldoni' instead", "[Obsolète] Utilisez 'agordo aldoni' à la place",
+    "[Eksdata] Uzu 'agordi aldoni' anstatauxe", "[DEPRECATED] Use 'agordi aldoni' instead", "[Obsolète] Utilisez 'agordi aldoni' à la place",
 ))
 def sxlosilo_deprecated(
     provizanto: str = typer.Argument(...),
@@ -186,8 +186,8 @@ def sxlosilo_deprecated(
     noto: Optional[str] = typer.Option(None, "--noto", "-n"),
     modelo: Optional[str] = typer.Option(None, "--modelo", "-m"),
 ) -> None:
-    """[DEPRECATED] Use 'agordo aldoni' instead."""
-    warning(tr_multi("'agordo sxlosilo' estas eksdata. Uzu 'agordo aldoni'.", "'agordo sxlosilo' is deprecated. Use 'agordo aldoni'.", "'agordo sxlosilo' est obsolète. Utilisez 'agordo aldoni'."))
+    """[DEPRECATED] Use 'agordi aldoni' instead."""
+    warning(tr_multi("'agordo sxlosilo' estas eksdata. Uzu 'agordi aldoni'.", "'agordo sxlosilo' is deprecated. Use 'agordi aldoni'.", "'agordo sxlosilo' est obsolète. Utilisez 'agordi aldoni'."))
     aldoni(provizanto, key=key, base_url=base_url, noto=noto, modelo=modelo)
 
 
@@ -230,7 +230,7 @@ def agordo_ls() -> None:
 
     configs = list_provider_configs()
     if not configs:
-        info(tr_multi("Neniuj provizantoj agorditaj. Uzu 'agordo aldoni' por aldoni ŝlosilon.", "No providers configured. Use 'agordo aldoni' to add a key.", "Aucun fournisseur configuré. Utilisez 'agordo aldoni' pour ajouter une clé."))
+        info(tr_multi("Neniuj provizantoj agorditaj. Uzu 'agordi aldoni' por aldoni ŝlosilon.", "No providers configured. Use 'agordi aldoni' to add a key.", "Aucun fournisseur configuré. Utilisez 'agordi aldoni' pour ajouter une clé."))
         return
 
     table = Table(title=tr_multi('Provizantoj', 'Providers', 'Fournisseurs'))
@@ -255,7 +255,7 @@ def agordo_ls() -> None:
 
 @agordo_app.command("montri", hidden=True)
 def montri() -> None:
-    """[DEPRECATED] Use 'agordo ls' instead."""
+    """[DEPRECATED] Use 'agordi ls' instead."""
     agordo_ls()
 
 
