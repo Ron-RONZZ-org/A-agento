@@ -203,7 +203,7 @@ def slosilo(
         )
         return
 
-    # Interactive prompt if no key provided
+    # Interactive mode: if no key provided, prompt for ALL options
     if not key:
         import getpass
 
@@ -224,6 +224,35 @@ def slosilo(
                 )
             )
             raise typer.Exit(1)
+
+        # Interactive mode: prompt for remaining optional options
+        if not base_url:
+            base_url = typer.prompt(
+                tr_multi(
+                    "API-baza URL (opcia):",  # eo
+                    "API base URL (optional):",  # en
+                    "URL de base API (optionnelle):",  # fr
+                ),
+                default="",
+            )
+        if not noto:
+            noto = typer.prompt(
+                tr_multi(
+                    "Etikedo por la ŝlosilo (opcia):",  # eo
+                    "Label for this key (optional):",  # en
+                    "Étiquette pour cette clé (optionnelle):",  # fr
+                ),
+                default="",
+            )
+        if not modelo:
+            modelo = typer.prompt(
+                tr_multi(
+                    "Modelo-nomo (opcia):",  # eo
+                    "Model name (optional):",  # en
+                    "Nom du modèle (optionnel):",  # fr
+                ),
+                default="",
+            )
 
     # Save to keyring
     profile = noto or "default"
