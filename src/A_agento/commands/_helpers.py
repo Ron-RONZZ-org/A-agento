@@ -68,19 +68,25 @@ def get_provider_or_exit(
         raise typer.Exit(1) from e
 
 
-def _construct_provider(provider_name, api_key, model=None, base_url=None):
-    """Construct a provider instance directly with specific params."""
+def _construct_provider(provider_name: str, api_key: str, model: str | None = None, base_url: str | None = None):
+    """Construct a provider instance directly with specific params.
+
+    Provider names are compared case-insensitively to handle stored names
+    like "Deepseek" or "DEEPSEEK" matching to the correct provider class.
+    """
     from A.core.ai import OpenAIProvider, DeepSeekProvider, HuggingFaceProvider, OllamaProvider
 
-    if provider_name == "openai":
+    normalized = provider_name.lower()
+    if normalized == "openai":
         return OpenAIProvider(api_key=api_key, model=model or None, base_url=base_url or None)
-    elif provider_name == "deepseek":
+    elif normalized == "deepseek":
         return DeepSeekProvider(api_key=api_key, model=model or None)
-    elif provider_name == "huggingface":
+    elif normalized == "huggingface":
         return HuggingFaceProvider(api_token=api_key, model=model or None)
-    elif provider_name == "ollama":
+    elif normalized == "ollama":
         return OllamaProvider(model=model or None, base_url=base_url or None)
     else:
+        # Custom provider names — treat as OpenAI-compatible endpoint
         return OpenAIProvider(api_key=api_key, model=model or None, base_url=base_url or None)
 
 

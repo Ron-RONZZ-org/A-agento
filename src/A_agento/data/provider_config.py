@@ -234,7 +234,6 @@ def parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
 
 def find_config(ref: str) -> dict | None:
     """Find a provider config by UUID, provider, or provider:profile."""
-    from A_agento.data.provider_config import get_provider_config, get_provider_config_by_uuid
     uuid, provider, profile = parse_ref(ref)
     if uuid:
         return get_provider_config_by_uuid(uuid)
