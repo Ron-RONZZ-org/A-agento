@@ -1,0 +1,260 @@
+"""Tool calling support for A-agento AI commands.
+
+Provides tool definitions and orchestration for LLM tool/function calling.
+Currently supports encik database queries for --formato enc generation.
+
+Tool definitions follow OpenAI's tool format for broad compatibility.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from A import info
+from A.core.ai import LLMProvider, LLMResponse, ToolCall
+
+
+# ── Tool definitions ─────────────────────────────────────────────────────────
+# OpenAI-compatible tool format, also supported by DeepSeek and Ollama 0.5+
+
+SEARCH_ENCIK_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "search_encik",
+        "description": "Search the personal encik knowledge base for entries related to a query. Returns title, UUID, and preview.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query (title or keyword)",
+                }
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+GET_ENTRY_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_encik_entry",
+        "description": "Get a full encik entry by UUID, including all fields and semantic links.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "uuid": {
+                    "type": "string",
+                    "description": "Full or prefix UUID of the entry",
+                }
+            },
+            "required": ["uuid"],
+        },
+    },
+}
+
+ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL]
+
+
+# ── Tool execution ───────────────────────────────────────────────────────────
+
+
+def execute_tool_call(tool_call: ToolCall) -> str:
+    """Execute a tool call and return the result as JSON string.
+
+    Args:
+        tool_call: ToolCall with name and arguments
+
+    Returns:
+        JSON-serialized result string
+    """
+    name = tool_call.function.get("name", "")
+    args_raw = tool_call.function.get("arguments", "{}")
+    try:
+        args = json.loads(args_raw) if isinstance(args_raw, str) else args_raw
+    except json.JSONDecodeError:
+        return json.dumps({"error": f"Invalid arguments JSON: {args_raw}"})
+
+    if name == "search_encik":
+        return _search_encik(args.get("query", ""))
+    elif name == "get_encik_entry":
+        return _get_encik_entry(args.get("uuid", ""))
+    else:
+        return json.dumps({"error": f"Unknown tool: {name}"})
+
+
+def _search_encik(query: str) -> str:
+    """Search encik DB by keyword/title.
+
+    Args:
+        query: Search query string
+
+    Returns:
+        JSON with matching entries (title, uuid, preview)
+    """
+    try:
+        from A_encik.data.storage import get_db as encik_db
+        db = encik_db()
+        results = db.execute(
+            """SELECT uuid, titolo, substr(difinio, 1, 200) as preview
+               FROM encik WHERE titolo LIKE ?
+               ORDER BY CASE WHEN titolo LIKE ? THEN 0 ELSE 1 END, titolo
+               LIMIT 8""",
+            (f"%{query}%", f"{query}%"),
+        )
+        if results:
+            return json.dumps(results, ensure_ascii=False, default=str)
+        return json.dumps({"message": f"No entries found for '{query}'"})
+    except ImportError:
+        return json.dumps({"error": "A-encik is not installed"})
+
+
+def _get_encik_entry(uuid: str) -> str:
+    """Get a full encik entry by UUID.
+
+    Args:
+        uuid: Entry UUID (full or prefix)
+
+    Returns:
+        JSON with the full entry
+    """
+    try:
+        from A_encik.data.storage import get_db as encik_db
+        from A_encik.enc_format import entry_to_enc
+
+        db = encik_db()
+        entry = db.execute_one(
+            "SELECT * FROM encik WHERE uuid LIKE ?", (f"{uuid}%",)
+        )
+        if entry:
+            enc_text = entry_to_enc(entry)
+            result = {
+                "uuid": entry["uuid"],
+                "titolo": entry["titolo"],
+                "enc_format": enc_text[:2000],
+            }
+            return json.dumps(result, ensure_ascii=False, default=str)
+        return json.dumps({"error": f"No entry found for UUID '{uuid}'"})
+    except ImportError:
+        return json.dumps({"error": "A-encik is not installed"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+# ── Orchestration ────────────────────────────────────────────────────────────
+
+
+def generate_with_tools(
+    provider: LLMProvider,
+    messages: list[dict],
+    tools: list[dict] | None = None,
+    max_turns: int = 5,
+) -> str:
+    """Multi-turn generation with tool calling support.
+
+    If the provider doesn't support tools, falls back to prompt-injection.
+
+    Args:
+        provider: LLM provider instance
+        messages: Initial chat messages
+        tools: Tool definitions (optional, uses ENCIK_TOOLS by default)
+        max_turns: Maximum tool call rounds
+
+    Returns:
+        Generated text content
+    """
+    if tools is None:
+        tools = ENCIK_TOOLS
+
+    if not provider.supports_tools:
+        # Fallback: inject tool results as prompt context
+        return _fallback_with_context(provider, messages, tools)
+
+    for turn in range(max_turns):
+        response = provider.chat(messages, tools=tools)
+
+        if not response.tool_calls:
+            return response.content  # Final response — no more tool calls
+
+        # Add assistant message with tool calls
+        assistant_msg: dict[str, Any] = {"role": "assistant", "content": response.content}
+        assistant_msg["tool_calls"] = [
+            {"id": tc.id, "type": tc.type, "function": tc.function}
+            for tc in response.tool_calls
+        ]
+        messages.append(assistant_msg)
+
+        # Execute each tool call and add result
+        for tc in response.tool_calls:
+            result = execute_tool_call(tc)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": result,
+            })
+
+    # Max turns reached — return last assistant content
+    return messages[-1].get("content", "") if messages else ""
+
+
+def _fallback_with_context(
+    provider: LLMProvider,
+    messages: list[dict],
+    tools: list[dict],
+) -> str:
+    """Fallback: pre-search encik DB and inject context into prompt.
+
+    Used when the provider doesn't support native tool calling.
+    Extracts keywords from the user message, searches encik DB,
+    and injects results as context.
+
+    Args:
+        provider: LLM provider
+        messages: Chat messages
+        tools: Tool definitions (used to extract search terms)
+
+    Returns:
+        Generated text
+    """
+    import re
+
+    # Extract user's last message content
+    user_content = ""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            user_content = msg.get("content", "")
+            break
+
+    # Simple keyword extraction
+    keywords = re.findall(r"\b[a-zA-Z]{4,}\b", user_content)
+    keywords = list(dict.fromkeys(k.lower() for k in keywords))[:3]
+
+    if keywords:
+        context_parts = []
+        for kw in keywords:
+            result = _search_encik(kw)
+            data = json.loads(result)
+            if isinstance(data, list) and data:
+                for entry in data[:3]:
+                    context_parts.append(
+                        f"- {entry.get('titolo', '?')} (#{entry.get('uuid', '?')[:8]})"
+                    )
+        if context_parts:
+            context = "\n".join(context_parts[:5])
+            messages.insert(0, {
+                "role": "system",
+                "content": f"Related entries in your knowledge base:\n{context}\n\nYou can reference these entries using [title](#uuid) syntax in your response.",
+            })
+
+    prompt = "\n".join(
+        f"{m.get('role', '')}: {m.get('content', '')}" for m in messages
+    )
+    return provider.generate(prompt)
+
+
+__all__ = [
+    "ENCIK_TOOLS",
+    "execute_tool_call",
+    "generate_with_tools",
+]
