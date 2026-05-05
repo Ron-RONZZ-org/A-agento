@@ -28,7 +28,11 @@ stilo_app = typer.Typer(
 )
 
 
-@stilo_app.command("aldoni")
+@stilo_app.command("aldoni", help=tr_multi(
+    "Registri skribstilan specimon",  # eo
+    "Register a writing style sample",  # en
+    "Enregistrer un echantillon de style d'ecriture",  # fr
+))
 def aldoni(
     substilo: str = typer.Argument(
         ...,
@@ -67,7 +71,11 @@ def aldoni(
     success(tr_multi('Specimo aldonita.', 'Sample added.', 'Echantillon ajoute.'))  # Sample added
 
 
-@stilo_app.command("ls")
+@stilo_app.command("ls", help=tr_multi(
+    "Listi registritajn stilajn specimojn",  # eo
+    "List registered style samples",  # en
+    "Lister les echantillons de style enregistres",  # fr
+))
 def stilo_ls() -> None:
     """List registered style samples."""
     from rich.console import Console
@@ -103,7 +111,11 @@ def listo() -> None:
     stilo_ls()
 
 
-@stilo_app.command("forigi")
+@stilo_app.command("forigi", help=tr_multi(
+    "Forigi skribstilan specimon",  # eo
+    "Remove a style sample",  # en
+    "Supprimer un echantillon de style",  # fr
+))
 def forigi(
     uuid: str = typer.Argument(
         ...,
@@ -134,7 +146,11 @@ def forigu(
     forigi(uuid)
 
 
-@stilo_app.command("aktiva")
+@stilo_app.command("aktiva", help=tr_multi(
+    "Aktivigi aux malaktivigi specimon",  # eo
+    "Activate or deactivate a sample",  # en
+    "Activer ou desactiver un echantillon",  # fr
+))
 def aktiva(
     uuid: str = typer.Argument(
         ...,

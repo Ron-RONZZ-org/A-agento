@@ -85,7 +85,11 @@ def _get_provider_or_exit(
 # ── default — set default provider ────────────────────────────────────────
 
 
-@agordo_app.command("default")
+@agordo_app.command("default", help=tr_multi(
+    "Agordi la implicitan LLM-provizanton",  # eo
+    "Set the default LLM provider",  # en
+    "Configurer le fournisseur LLM par defaut",  # fr
+))
 def default(
     provizanto: str = typer.Argument(
         ...,
@@ -121,7 +125,11 @@ def default(
 # ── slosilo — configure API key ──────────────────────────────────────────
 
 
-@agordo_app.command("slosilo")
+@agordo_app.command("slosilo", help=tr_multi(
+    "Agordi API-ŝlosilon por provizanto",  # eo
+    "Configure API key for a provider",  # en
+    "Configurer la cle API pour un fournisseur",  # fr
+))
 def slosilo(
     provizanto: str = typer.Argument(
         ...,
@@ -283,7 +291,11 @@ def sxlosilo_deprecated(
 # ── montri — show configuration ───────────────────────────────────────────
 
 
-@agordo_app.command("ls")
+@agordo_app.command("ls", help=tr_multi(
+    "Montri nunan agordon de provizantoj",  # eo
+    "Show current provider configuration",  # en
+    "Afficher la configuration actuelle du fournisseur",  # fr
+))
 def agordo_ls() -> None:
     """Show current provider configuration.
 
@@ -364,7 +376,11 @@ def montri() -> None:
 # ── testi — test provider connectivity ────────────────────────────────────
 
 
-@agordo_app.command("testi")
+@agordo_app.command("testi", help=tr_multi(
+    "Testi konekton al provizanto",  # eo
+    "Test provider connectivity",  # en
+    "Tester la connexion au fournisseur",  # fr
+))
 def testi(
     provizanto: Optional[str] = typer.Option(
         None,

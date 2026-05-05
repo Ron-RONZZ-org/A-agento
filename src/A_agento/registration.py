@@ -56,9 +56,30 @@ def get_lien_ai_app() -> typer.Typer:
         ),
     )
 
-    ai_app.command(name="resumu")(resumu)
-    ai_app.command(name="respondi")(respondi)
-    ai_app.command(name="agu")(agu)
+    ai_app.command(
+        name="resumu",
+        help=tr_multi(
+            "Resumi retposxtojn kun AI",  # eo
+            "Summarize emails with AI",  # en
+            "Resumer les emails avec IA",  # fr
+        ),
+    )(resumu)
+    ai_app.command(
+        name="respondi",
+        help=tr_multi(
+            "Generi inteligentan respondon al retposxto",  # eo
+            "Generate smart reply to an email",  # en
+            "Generer une reponse intelligente a un email",  # fr
+        ),
+    )(respondi)
+    ai_app.command(
+        name="agu",
+        help=tr_multi(
+            "Elsxi agojn el retposxto",  # eo
+            "Extract actions from an email",  # en
+            "Extraire des actions d'un email",  # fr
+        ),
+    )(agu)
 
     return ai_app
 
@@ -82,7 +103,14 @@ def get_encik_ai_app() -> typer.Typer:
         ),
     )
 
-    ai_app.command(name="generi")(generi)
+    ai_app.command(
+        name="generi",
+        help=tr_multi(
+            "Generi enhavon kun AI",  # eo
+            "Generate content with AI",  # en
+            "Generer du contenu avec IA",  # fr
+        ),
+    )(generi)
 
     return ai_app
 
