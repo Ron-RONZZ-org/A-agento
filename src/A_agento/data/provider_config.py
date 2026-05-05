@@ -233,10 +233,19 @@ def parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
 
 
 def find_config(ref: str) -> dict | None:
-    """Find a provider config by UUID, provider, or provider:profile."""
+    """Find a provider config by UUID, provider, or provider:profile.
+
+    If the ref looks like a UUID but no config matches, falls back to
+    looking it up as a provider name. This handles provider names that
+    happen to look like hex strings (e.g. "deadbeef" or "a1b2c3d4").
+    """
     uuid, provider, profile = parse_ref(ref)
     if uuid:
-        return get_provider_config_by_uuid(uuid)
+        config = get_provider_config_by_uuid(uuid)
+        if config:
+            return config
+        # UUID didn't match — try as provider name
+        return get_provider_config(ref, profile or "default")
     if provider:
         return get_provider_config(provider, profile or "default")
     return None
