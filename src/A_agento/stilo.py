@@ -55,7 +55,7 @@ def aldoni(
     """
     valid_types = ("reply", "summary")
     if substilo not in valid_types:
-        error(tr(f"Nevalida tipo. Uzu: {', '.join(valid_types)}"))
+        error(tr_multi(f"Nevalida tipo. Uzu: {', '.join(valid_types)}", f"Invalid type. Use: {', '.join(valid_types)}", f"Type invalide. Utilisez : {', '.join(valid_types)}"))
         raise typer.Exit(1)
 
     sample_uuid = str(uuid.uuid4())[:8]
@@ -64,7 +64,7 @@ def aldoni(
         sample_type=substilo,
         content=enhavo,
     )
-    success(tr("Specimo aldonita."))  # Sample added
+    success(tr_multi('Specimo aldonita.', 'Sample added.', 'Echantillon ajoute.'))  # Sample added
 
 
 @stilo_app.command("ls")
@@ -77,10 +77,10 @@ def stilo_ls() -> None:
     samples = list_style_samples()
 
     if not samples:
-        info(tr("Neniuj specimoj."))  # No samples
+        info(tr_multi('Neniuj specimoj.', 'No samples.', 'Aucun echantillon.'))  # No samples
         return
 
-    table = Table(title=tr("Stilo-specimoj"))
+    table = Table(title=tr_multi('Stilo-specimoj', 'Style samples', 'Echantillons de style'))
     table.add_column("UUID", style="cyan")
     table.add_column("Tipo", style="magenta")
     table.add_column("Enhavo", style="white")
@@ -116,7 +116,7 @@ def forigi(
 ) -> None:
     """Remove a style sample."""
     delete_style_sample(uuid)
-    success(tr("Specimo forigita."))  # Sample deleted
+    success(tr_multi('Specimo forigita.', 'Sample deleted.', 'Echantillon supprime.'))  # Sample deleted
 
 
 @stilo_app.command("forigu", hidden=True)

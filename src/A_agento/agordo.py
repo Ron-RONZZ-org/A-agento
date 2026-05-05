@@ -298,12 +298,12 @@ def agordo_ls() -> None:
         )
         return
 
-    table = Table(title=tr("Provizantoj"))
-    table.add_column(tr("Provizanto"), style="cyan")
-    table.add_column(tr("Ŝlosilo"), style="yellow")
-    table.add_column(tr("Modelo"), style="green")
-    table.add_column(tr("Baza URL"), style="blue")
-    table.add_column(tr("Etikedo"), style="magenta")
+    table = Table(title=tr_multi('Provizantoj', 'Providers', 'Fournisseurs'))
+    table.add_column(tr_multi('Provizanto', 'Provider', 'Fournisseur'), style="cyan")
+    table.add_column(tr_multi("Sxlosilo", "Key", "Cle"), style="yellow")
+    table.add_column(tr_multi('Modelo', 'Model', 'Modele'), style="green")
+    table.add_column(tr_multi('Baza URL', 'Base URL', 'URL de base'), style="blue")
+    table.add_column(tr_multi('Etikedo', 'Label', 'Etiquette'), style="magenta")
 
     for cfg in configs:
         prov = cfg["provider"]

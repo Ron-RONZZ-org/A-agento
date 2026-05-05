@@ -201,7 +201,7 @@ class AgentService:
         if email is not None:
             is_valid, missing = validate_email_dict(email)
             if not is_valid:
-                warning(tr(f"A-lien email mankas: {', '.join(missing)}"))
+                warning(tr_multi(f"A-lien email mankas: {', '.join(missing)}", f"A-lien email missing: {', '.join(missing)}", f"Email A-lien manquant : {', '.join(missing)}"))
 
         return email
 
@@ -278,7 +278,7 @@ class AgentService:
         if emails:
             is_valid, missing = validate_email_dict(emails[0])
             if not is_valid:
-                warning(tr(f"A-lien emails mankas: {', '.join(missing)}"))
+                warning(tr_multi(f"A-lien emails mankas: {', '.join(missing)}", f"A-lien emails missing: {', '.join(missing)}", f"Emails A-lien manquants : {', '.join(missing)}"))
 
         return emails
 
@@ -422,7 +422,7 @@ class AgentService:
 
         email = self.get_email(email_uuid)
         if not email:
-            error(tr("Retpoŝto ne trovita."))  # Email not found
+            error(tr_multi("Retposxto ne trovita.", "Email not found.", "Email non trouve."))  # Email not found
             return None
 
         # Build prompt
@@ -464,7 +464,7 @@ class AgentService:
 
         email = self.get_email(email_uuid)
         if not email:
-            error(tr("Retpoŝto ne trovita."))  # Email not found
+            error(tr_multi("Retposxto ne trovita.", "Email not found.", "Email non trouve."))  # Email not found
             return []
 
         # Build prompt
@@ -480,7 +480,7 @@ class AgentService:
         # Parse JSON with robust extraction
         actions = _extract_json(response)
         if not actions:
-            info(tr("Nepovis analizi la retpoŝton."))  # Could not parse email
+            info(tr_multi("Nepovis analizi la retposxton.", "Could not parse the email.", "Impossible d'analyser l'email."))  # Could not parse email
             return []
 
         suggestions = []
@@ -533,7 +533,7 @@ class AgentService:
         """
         cal_service = _get_calendar_service()
         if cal_service is None:
-            info(tr("A-organizi ne estas instalita."))  # A-organizi not installed
+            info(tr_multi('A-organizi ne estas instalita.', 'A-organizi is not installed.', "A-organizi n'est pas installe."))  # A-organizi not installed
             return None
 
         event_data = {
@@ -581,7 +581,7 @@ class AgentService:
         try:
             todo_service = _get_todo_service()
         except Exception:
-            info(tr("A-organizi ne estas instalita."))  # A-organizi not installed
+            info(tr_multi('A-organizi ne estas instalita.', 'A-organizi is not installed.', "A-organizi n'est pas installe."))  # A-organizi not installed
             return None
 
         todo_data = {
@@ -703,7 +703,7 @@ class AgentService:
         """
         encik_service = _get_encik_service()
         if encik_service is None:
-            info(tr("A-encik ne estas instalita."))  # A-encik not installed
+            info(tr_multi('A-encik ne estas instalita.', 'A-encik is not installed.', "A-encik n'est pas installe."))  # A-encik not installed
             return None
 
         # 1. Resolve explicit vt#/ec# references

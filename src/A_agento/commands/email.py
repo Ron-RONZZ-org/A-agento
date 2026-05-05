@@ -76,16 +76,16 @@ def resumu(
     )
 
     if not summaries:
-        info(tr("Neniuj retposxtoj por resumi."))  # No emails to summarize
+        info(tr_multi('Neniuj retposxtoj por resumi.', 'No emails to summarize.', 'Aucun email a resumer.'))  # No emails to summarize
         return
 
     # Display summaries
     console = Console()
     table = Table(show_header=True, header_style="bold")
     table.add_column("#", style="dim", width=4)
-    table.add_column(tr("Subjekto"))  # Subject
-    table.add_column(tr("Sendinto"))  # From
-    table.add_column(tr("Resumo"))  # Summary
+    table.add_column(tr_multi('Subjekto', 'Subject', 'Sujet'))  # Subject
+    table.add_column(tr_multi('Sendinto', 'From', 'De'))  # From
+    table.add_column(tr_multi('Resumo', 'Summary', 'Resume'))  # Summary
 
     for i, summary in enumerate(summaries, 1):
         table.add_row(
@@ -108,7 +108,7 @@ def resumu(
             provizanto=provider.name,
         )
 
-    success(tr("Finita."))  # Done
+    success(tr_multi('Finita.', 'Done.', 'Fini.'))  # Done
 
 
 def respondi(
@@ -162,10 +162,10 @@ def respondi(
     reply = agent.generate_reply(provider, uuid, tone=tono)
 
     if not reply:
-        error(tr("Ne povis generi respondon."))  # Could not generate reply
+        error(tr_multi('Ne povis generi respondon.', 'Could not generate reply.', 'Impossible de generer la reponse.'))  # Could not generate reply
         raise typer.Exit(1)
 
-    info(tr("Respondo:"))  # Reply:
+    info(tr_multi('Respondo:', 'Reply:', 'Reponse :'))  # Reply:
     print("\n" + reply + "\n")
 
     # Save to history
@@ -178,7 +178,7 @@ def respondi(
         provizanto=provider.name,
     )
 
-    success(tr("Finita."))  # Done
+    success(tr_multi('Finita.', 'Done.', 'Fini.'))  # Done
 
 
 def agu(
@@ -226,15 +226,15 @@ def agu(
     actions = agent.extract_actions(provider, uuid)
 
     if not actions:
-        info(tr("Neniuj agoj trovitaj."))  # No actions found
+        info(tr_multi('Neniuj agoj trovitaj.', 'No actions found.', 'Aucune action trouvee.'))  # No actions found
         return
 
     # Display actions
     console = Console()
     table = Table(show_header=True, header_style="bold")
-    table.add_column(tr("Tipo"))  # Type
-    table.add_column(tr("Titolo"))  # Title
-    table.add_column(tr("Detaloj"))  # Details
+    table.add_column(tr_multi('Tipo', 'Type', 'Type'))  # Type
+    table.add_column(tr_multi('Titolo', 'Title', 'Titre'))  # Title
+    table.add_column(tr_multi('Detaloj', 'Details', 'Details'))  # Details
 
     for action in actions:
         table.add_row(
@@ -248,35 +248,35 @@ def agu(
     # Confirm and execute each action
     for action in actions:
         # Allow user to edit before confirmation
-        info(tr("Vi povas redakti antaux konfirmo. premu Enter por konservi."))
+        info(tr_multi('Vi povas redakti antaux konfirmo. premu Enter por konservi.', 'You can edit before confirming. Press Enter to keep.', 'Vous pouvez modifier avant de confirmer. Appuyez sur Enter pour conserver.'))
 
         if action.action_type == "calendar":
             new_title = typer.prompt(
-                tr("Titolo"),  # Title
+                tr_multi('Titolo', 'Title', 'Titre'),  # Title
                 default=action.metadata.get("title", action.title),
             )
             new_start = typer.prompt(
-                tr("Komenco (ISO+Z)"),  # Start (ISO+Z)
+                tr_multi('Komenco (ISO+Z)', 'Start (ISO+Z)', 'Debut (ISO+Z)'),  # Start (ISO+Z)
                 default=action.metadata.get("start", ""),
             )
             new_end = typer.prompt(
-                tr("Fino (ISO+Z)"),  # End (ISO+Z)
+                tr_multi('Fino (ISO+Z)', 'End (ISO+Z)', 'Fin (ISO+Z)'),  # End (ISO+Z)
                 default=action.metadata.get("end", ""),
             )
             new_location = typer.prompt(
-                tr("Loko"),  # Location
+                tr_multi('Loko', 'Location', 'Emplacement'),  # Location
                 default=action.metadata.get("location", ""),
             )
             new_ripeto = typer.prompt(
-                tr("Ripeto (FREQ=...)"),  # Recurrence
+                tr_multi('Ripeto (FREQ=...)', 'Recurrence (FREQ=...)', 'Recurrence (FREQ=...)'),  # Recurrence
                 default=action.metadata.get("ripeto", ""),
             )
             new_remind = typer.prompt(
-                tr("Memorigu (15m/1h/1d)"),  # Reminder
+                tr_multi('Memorigu (15m/1h/1d)', 'Reminder (15m/1h/1d)', 'Rappel (15m/1h/1d)'),  # Reminder
                 default=action.metadata.get("remind", ""),
             )
             new_desc = typer.prompt(
-                tr("Priskribo"),  # Description
+                tr_multi('Priskribo', 'Description', 'Description'),  # Description
                 default=action.metadata.get("description", action.details),
             )
 
@@ -302,19 +302,19 @@ def agu(
 
         elif action.action_type == "todo":
             new_title = typer.prompt(
-                tr("Titolo"),  # Title
+                tr_multi('Titolo', 'Title', 'Titre'),  # Title
                 default=action.metadata.get("title", action.title),
             )
             new_due = typer.prompt(
-                tr("Limdato (ISO+Z)"),  # Due date (ISO+Z)
+                tr_multi('Limdato (ISO+Z)', 'Due date (ISO+Z)', 'Date limite (ISO+Z)'),  # Due date (ISO+Z)
                 default=action.metadata.get("due", ""),
             )
             new_priority = typer.prompt(
-                tr("Prioritato"),  # Priority
+                tr_multi('Prioritato', 'Priority', 'Priorite'),  # Priority
                 default=action.metadata.get("priority", "normal"),
             )
             new_desc = typer.prompt(
-                tr("Priskribo"),  # Description
+                tr_multi('Priskribo', 'Description', 'Description'),  # Description
                 default=action.metadata.get("description", action.details),
             )
 
@@ -330,19 +330,19 @@ def agu(
         else:
             # Knowledge: edit title, content, ligilo, superklaso
             new_title = typer.prompt(
-                tr("Titolo"),  # Title
+                tr_multi('Titolo', 'Title', 'Titre'),  # Title
                 default=action.title,
             )
             new_content = typer.prompt(
-                tr("Enhavo"),  # Content
+                tr_multi('Enhavo', 'Content', 'Contenu'),  # Content
                 default=action.details,
             )
             new_ligilo = typer.prompt(
-                tr("Ligilo (UUID-kompostaj)"),  # Links (comma-separated UUIDs)
+                tr_multi('Ligilo (UUID-kompostaj)', 'Links (comma-separated UUIDs)', 'Liens (UUID separes par virgules)'),  # Links (comma-separated UUIDs)
                 default=",".join(action.metadata.get("ligilo", [])),
             )
             new_superklaso = typer.prompt(
-                tr("Superklaso (UUID-kompostaj)"),  # Parent categories
+                tr_multi('Superklaso (UUID-kompostaj)', 'Parent categories (comma-separated UUIDs)', 'Categories parentes (UUID separes par virgules)'),  # Parent categories
                 default=",".join(action.metadata.get("superklaso", [])),
             )
 
@@ -362,20 +362,20 @@ def agu(
             if action.action_type == "calendar":
                 result = agent.create_calendar_event(action.metadata)
                 if result:
-                    success(tr("Kreita okazis."))  # Created event
+                    success(tr_multi('Kreita okazis.', 'Created event.', 'Evenement cree.'))  # Created event
 
             elif action.action_type == "todo":
                 result = agent.create_todo(action.metadata)
                 if result:
-                    success(tr("Kreita tasko."))  # Created task
+                    success(tr_multi('Kreita tasko.', 'Created task.', 'Tache creee.'))  # Created task
 
             elif action.action_type == "knowledge":
                 result = agent.create_knowledge_entry(action.metadata)
                 if result:
-                    success(tr("Kreita sciento."))  # Created knowledge
+                    success(tr_multi('Kreita sciento.', 'Created knowledge.', 'Connaissance creee.'))  # Created knowledge
 
         else:
-            info(tr("Nuligita."))  # Cancelled
+            info(tr_multi('Nuligita.', 'Cancelled.', 'Annule.'))  # Cancelled
 
 
 __all__ = [
