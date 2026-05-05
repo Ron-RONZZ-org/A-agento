@@ -234,6 +234,7 @@ def agordo_ls() -> None:
         return
 
     table = Table(title=tr_multi('Provizantoj', 'Providers', 'Fournisseurs'))
+    table.add_column(tr_multi('UUID', 'UUID', 'UUID'), style="dim")
     table.add_column(tr_multi('Provizanto', 'Provider', 'Fournisseur'), style="cyan")
     table.add_column(tr_multi('Profilon', 'Profile', 'Profil'), style="dim")
     table.add_column(tr_multi("Sxlosilo", "Key", "Cle"), style="yellow")
@@ -246,7 +247,8 @@ def agordo_ls() -> None:
         prof = cfg.get("profile", "default")
         api_key = get_api_key(provider=prov, profile=prof)
         masked = ("..." + api_key[-4:]) if api_key else tr_multi("mankas", "missing", "manquant")
-        table.add_row(prov, prof, masked, cfg.get("modelo", "") or "-", cfg.get("base_url", "") or "-", cfg.get("noto", "") or "-")
+        entry_uuid = cfg.get("uuid", "")[:8] or "-"
+        table.add_row(entry_uuid, prov, prof, masked, cfg.get("modelo", "") or "-", cfg.get("base_url", "") or "-", cfg.get("noto", "") or "-")
 
     console.print(table)
 
