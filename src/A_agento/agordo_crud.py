@@ -5,346 +5,322 @@ Commands: vidi, modifi, forigi (aldoni lives in agordo.py)
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 import typer
 
-from A import tr, tr_multi, info, error, success, warning
+from A import tr_multi, info, error, success, warning
 from A.core.ai import get_api_key, set_default_provider, get_default_provider
 from A_agento.data.provider_config import (
     save_provider_config,
     get_provider_config,
+    get_provider_config_by_uuid,
     list_provider_configs,
     delete_provider_config as _delete_provider_config,
 )
 
 
-# ── vidi — view single provider ──────────────────────────────────────────────
+def _parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
+    """Parse a provider reference into (uuid, provider, profile).
+
+    Accepts formats: UUID, provider, or provider:profile.
+
+    Args:
+        ref: UUID, provider name, or "provider:profile" string.
+
+    Returns:
+        Tuple of (uuid, provider, profile). At most one is set.
+    """
+    # Check if it's a UUID (36 chars with hyphens or 32 hex)
+    if len(ref) == 36 and ref.count("-") == 4:
+        return (ref, None, None)
+    if len(ref) == 32 and all(c in "0123456789abcdef" for c in ref.lower()):
+        return (ref, None, None)
+    # Check for provider:profile syntax
+    if ":" in ref:
+        parts = ref.split(":", 1)
+        return (None, parts[0], parts[1])
+    # Bare provider name
+    return (None, ref, None)
+
+
+def _find_config(ref: str) -> dict | None:
+    """Find a provider config by UUID, provider, or provider:profile.
+
+    Args:
+        ref: UUID, provider name, or "provider:profile".
+
+    Returns:
+        Config dict or None.
+    """
+    uuid, provider, profile = _parse_ref(ref)
+    if uuid:
+        return get_provider_config_by_uuid(uuid)
+    if provider:
+        return get_provider_config(provider, profile or "default")
+    return None
+
+
+# ── vidi — view single provider ──────────────────────────────────────────
 
 
 def vidi(
     provizanto: str = typer.Argument(
         ...,
         help=tr_multi(
-            "Provizanto-nomo por vidi",  # eo
-            "Provider name to view",  # en
-            "Nom du fournisseur à voir",  # fr
+            "UUID, provizanto-nomo, aux provizanto:profilon por vidi",
+            "UUID, provider name, or provider:profile to view",
+            "UUID, nom du fournisseur ou fournisseur:profil a voir",
         ),
     ),
 ) -> None:
-    """Show detailed configuration for a single provider.
-
-    Displays the API key status (masked), model, base URL,
-    label, and timestamps.
-
-    API keys are NEVER displayed in full — only the last 4 characters.
+    """Show detailed configuration for a single provider or profile.
 
     Examples:
         agento agordo vidi openai
-        agento agordo vidi my-custom-endpoint
+        agento agordo vidi openai:work
+        agento agordo vidi a1b2c3d4-...
     """
     from rich.console import Console
     from rich.table import Table
 
-    config = get_provider_config(provizanto)
+    config = _find_config(provizanto)
     if config is None:
-        error(
-            tr_multi(
-                f"Provizanto '{provizanto}' ne trovita. Uzu 'agordo aldoni' por aldoni.",  # eo
-                f"Provider '{provizanto}' not found. Use 'agordo aldoni' to add.",  # en
-                f"Fournisseur '{provizanto}' introuvable. Utilisez 'agordo aldoni' pour ajouter.",  # fr
-            )
-        )
+        error(tr_multi(
+            f"Provizanto '{provizanto}' ne trovita.",
+            f"Provider '{provizanto}' not found.",
+            f"Fournisseur '{provizanto}' introuvable.",
+        ))
         raise typer.Exit(1)
 
+    provider = config["provider"]
     profile = config.get("profile", "default")
-    api_key = get_api_key(provider=provizanto, profile=profile)
+    api_key = get_api_key(provider=provider, profile=profile)
     masked = ("..." + api_key[-4:]) if api_key else tr_multi("mankas", "missing", "manquant")
 
     console = Console()
-    table = Table(title=tr_multi(f"Provizanto: {provizanto}", f"Provider: {provizanto}", f"Fournisseur : {provizanto}"))
+    table = Table(title=tr_multi(
+        f"Provizanto: {provider}", f"Provider: {provider}", f"Fournisseur : {provider}",
+    ))
     table.add_column(tr_multi("Kampo", "Field", "Champ"), style="cyan")
     table.add_column(tr_multi("Valoro", "Value", "Valeur"), style="white")
 
+    table.add_row(tr_multi("UUID", "UUID", "UUID"), config.get("uuid", "")[:8] or "-")
     table.add_row(tr_multi("Profilon", "Profile", "Profil"), profile)
-    table.add_row(tr_multi("Ŝlosilo", "Key", "Clé"), masked)
-    table.add_row(tr_multi("Modelo", "Model", "Modèle"), config.get("modelo", "") or "-")
+    table.add_row(tr_multi("Sxlosilo", "Key", "Cle"), masked)
+    table.add_row(tr_multi("Modelo", "Model", "Modele"), config.get("modelo", "") or "-")
     table.add_row(tr_multi("Baza URL", "Base URL", "URL de base"), config.get("base_url", "") or "-")
-    table.add_row(tr_multi("Etikedo", "Label", "Étiquette"), config.get("noto", "") or "-")
-    table.add_row(tr_multi("Kreita je", "Created at", "Créé le"), config.get("kreita_je", "") or "-")
-    table.add_row(tr_multi("Modifita je", "Modified at", "Modifié le"), config.get("modifita_je", "") or "-")
+    table.add_row(tr_multi("Etikedo", "Label", "Etiquette"), config.get("noto", "") or "-")
+    table.add_row(tr_multi("Kreita je", "Created at", "Cree le"), config.get("kreita_je", "") or "-")
+    table.add_row(tr_multi("Modifita je", "Modified at", "Modifie le"), config.get("modifita_je", "") or "-")
 
     console.print(table)
 
 
-# ── modifi — update provider ──────────────────────────────────────────────────
+# ── modifi — update provider ──────────────────────────────────────────────
 
 
 def modifi(
     provizanto: str = typer.Argument(
         ...,
         help=tr_multi(
-            "Provizanto-nomo por modifi",  # eo
-            "Provider name to modify",  # en
-            "Nom du fournisseur à modifier",  # fr
+            "UUID, provizanto-nomo, aux provizanto:profilon por modifi",
+            "UUID, provider name, or provider:profile to modify",
+            "UUID, nom du fournisseur ou fournisseur:profil a modifier",
         ),
     ),
-    key: Optional[str] = typer.Option(
-        None,
-        "--key",
-        "-k",
-        help=tr_multi(
-            "Nova API-ŝlosilo",  # eo
-            "New API key",  # en
-            "Nouvelle clé API",  # fr
-        ),
-    ),
-    base_url: Optional[str] = typer.Option(
-        None,
-        "--base-url",
-        "-b",
-        help=tr_multi(
-            "Nova API-baza URL",  # eo
-            "New API base URL",  # en
-            "Nouvelle URL de base API",  # fr
-        ),
-    ),
-    noto: Optional[str] = typer.Option(
-        None,
-        "--noto",
-        "-n",
-        help=tr_multi(
-            "Nova etikedo",  # eo
-            "New label",  # en
-            "Nouvelle étiquette",  # fr
-        ),
-    ),
-    modelo: Optional[str] = typer.Option(
-        None,
-        "--modelo",
-        "-m",
-        help=tr_multi(
-            "Nova modelo-nomo",  # eo
-            "New model name",  # en
-            "Nouveau nom du modèle",  # fr
-        ),
-    ),
+    key: Optional[str] = typer.Option(None, "--key", "-k",
+        help=tr_multi("Nova API-sxlosilo", "New API key", "Nouvelle cle API")),
+    base_url: Optional[str] = typer.Option(None, "--base-url", "-b",
+        help=tr_multi("Nova API-baza URL", "New API base URL", "Nouvelle URL de base API")),
+    noto: Optional[str] = typer.Option(None, "--noto", "-n",
+        help=tr_multi("Nova etikedo", "New label", "Nouvelle etiquette")),
+    modelo: Optional[str] = typer.Option(None, "--modelo", "-m",
+        help=tr_multi("Nova modelo-nomo", "New model name", "Nouveau nom du modele")),
 ) -> None:
     """Modify an existing provider configuration.
 
     All options are optional — only specified fields are updated.
-    If no options are provided, runs interactively with current values
-    as defaults.
+    If no options are provided, runs interactively with current values.
 
     Examples:
         agento agordo modifi openai --key sk-new
-        agento agordo modifi openai --base-url https://new.endpoint/v1
-        agento agordo modifi openai  # interactive mode
+        agento agordo modifi openai:work --modelo gpt-4
     """
-    config = get_provider_config(provizanto)
+    config = _find_config(provizanto)
     if config is None:
-        error(
-            tr_multi(
-                f"Provizanto '{provizanto}' ne trovita. Uzu 'agordo aldoni' por aldoni unue.",  # eo
-                f"Provider '{provizanto}' not found. Use 'agordo aldoni' first.",  # en
-                f"Fournisseur '{provizanto}' introuvable. Utilisez 'agordo aldoni' d'abord.",  # fr
-            )
-        )
+        error(tr_multi(
+            f"Provizanto '{provizanto}' ne trovita.",
+            f"Provider '{provizanto}' not found.",
+            f"Fournisseur '{provizanto}' introuvable.",
+        ))
         raise typer.Exit(1)
 
+    provider = config["provider"]
     profile = config.get("profile", "default")
 
     if key:
         from A.core.ai import save_api_key as _save_key
-        _save_key(key, provider=provizanto, profile=profile)
+        _save_key(key, provider=provider, profile=profile)
 
     # Interactive mode: if no flags given, prompt with current values
     if not any([key, base_url, noto, modelo]):
-        info(
-            tr_multi(
-                f"Modifi agordojn por {provizanto} (premu Enter por konservi nunan valoron):",  # eo
-                f"Modify settings for {provizanto} (press Enter to keep current value):",  # en
-                f"Modifier les paramètres pour {provizanto} (appuyez sur Enter pour conserver la valeur actuelle):",  # fr
-            )
-        )
-
+        info(tr_multi(
+            f"Modifi agordojn por {provider}:{profile} (premu Enter por konservi):",
+            f"Modify settings for {provider}:{profile} (Enter to keep):",
+            f"Modifier les parametres pour {provider}:{profile} (Entree pour garder):",
+        ))
         new_base_url = typer.prompt(
             tr_multi("Baza URL", "Base URL", "URL de base"),
             default=config.get("base_url", "") or "",
         )
         if new_base_url != config.get("base_url", ""):
             base_url = new_base_url
-
         new_noto = typer.prompt(
-            tr_multi("Etikedo", "Label", "Étiquette"),
+            tr_multi("Etikedo", "Label", "Etiquette"),
             default=config.get("noto", "") or "",
         )
         if new_noto != config.get("noto", ""):
             noto = new_noto
-
         new_modelo = typer.prompt(
-            tr_multi("Modelo", "Model", "Modèle"),
+            tr_multi("Modelo", "Model", "Modele"),
             default=config.get("modelo", "") or "",
         )
         if new_modelo != config.get("modelo", ""):
             modelo = new_modelo
-
         if not any([base_url, noto, modelo]):
-            info(
-                tr_multi(
-                    "Neniuj ŝanĝoj. Nuligita.",  # eo
-                    "No changes. Cancelled.",  # en
-                    "Aucun changement. Annulé.",  # fr
-                )
-            )
+            info(tr_multi("Neniuj sangxoj. Nuligita.", "No changes. Cancelled.", "Aucun changement. Annule."))
             return
 
-    # Save metadata updates
     save_provider_config(
-        provider=provizanto,
+        provider=provider,
         profile=profile,
         noto=noto if noto is not None else config.get("noto", ""),
         modelo=modelo if modelo is not None else config.get("modelo", ""),
         base_url=base_url if base_url is not None else config.get("base_url", ""),
     )
-
-    success(
-        tr_multi(
-            f"Agordoj por {provizanto} ĝisdatigitaj.",  # eo
-            f"Settings for {provizanto} updated.",  # en
-            f"Paramètres pour {provizanto} mis à jour.",  # fr
-        )
-    )
+    success(tr_multi(
+        f"Agordoj por {provider}:{profile} gxisdatigitaj.",
+        f"Settings for {provider}:{profile} updated.",
+        f"Parametres pour {provider}:{profile} mis a jour.",
+    ))
 
 
-# ── forigi — delete provider ─────────────────────────────────────────────────
+# ── forigi — delete provider(s) ──────────────────────────────────────────
 
 
 def _maybe_reassign_default(deleted_provider: str) -> None:
-    """If the deleted provider was the default, reassign to a safe fallback.
-
-    Args:
-        deleted_provider: The provider that was just deleted
-    """
+    """If the deleted provider was the default, reassign to a safe fallback."""
     current_default = get_default_provider()
     if deleted_provider != current_default:
         return
-
     remaining = list_provider_configs()
     if not remaining:
         set_default_provider("ollama")
-        info(
-            tr_multi(
-                "Implicitita provizanto rekomencigita al ollama.",  # eo
-                "Default provider reset to ollama.",  # en
-                "Fournisseur par défaut réinitialisé à ollama.",  # fr
-            )
-        )
+        info(tr_multi(
+            "Implicitita provizanto rekomencigita al ollama.",
+            "Default provider reset to ollama.",
+            "Fournisseur par defaut reinitialise a ollama.",
+        ))
     else:
-        warning(
-            tr_multi(
-                "La implicita provizanto estis forigita. Uzu 'agordo default' por agordi novan.",  # eo
-                "The default provider was deleted. Use 'agordo default' to set a new one.",  # en
-                "Le fournisseur par défaut a été supprimé. Utilisez 'agordo default' pour en définir un nouveau.",  # fr
-            )
-        )
+        warning(tr_multi(
+            "La implicita provizanto estis forigita. Uzu 'agordo default' por agordi novan.",
+            "The default provider was deleted. Use 'agordo default' to set a new one.",
+            "Le fournisseur par defaut a ete supprime. Utilisez 'agordo default' pour en definir un nouveau.",
+        ))
+
+
+def _delete_one(ref: str, keyring: bool) -> bool:
+    """Delete a single provider config by UUID, provider, or provider:profile.
+
+    Args:
+        ref: UUID, provider name, or "provider:profile".
+        keyring: Whether to also clear the API key from keyring.
+
+    Returns:
+        True if deleted, False if not found.
+    """
+    uuid, provider, profile = _parse_ref(ref)
+    config = _find_config(ref)
+    if config is None:
+        return False
+
+    provider_name = config["provider"]
+    profile_name = config.get("profile", "default")
+    config_uuid = config.get("uuid")
+    deleted = _delete_provider_config(
+        uuid=config_uuid,
+        provider=provider_name,
+        profile=profile_name,
+    )
+    if not deleted:
+        return False
+
+    if keyring:
+        from A.core.ai import save_api_key
+        save_api_key("", provider=provider_name, profile=profile_name)
+
+    _maybe_reassign_default(provider_name)
+    return True
 
 
 def forigi(
-    provizanto: str = typer.Argument(
+    provizantoj: List[str] = typer.Argument(
         ...,
         help=tr_multi(
-            "Provizanto-nomo por forigi",  # eo
-            "Provider name to delete",  # en
-            "Nom du fournisseur à supprimer",  # fr
+            "UUID, provizanto-nomo(j), aux provizanto:profilon por forigi (unu aux pluraj)",
+            "UUID, provider name(s), or provider:profile to delete (one or more)",
+            "UUID, nom(s) du fournisseur ou fournisseur:profil a supprimer (un ou plusieurs)",
         ),
     ),
-    keyring: bool = typer.Option(
-        False,
-        "--keyring",
-        help=tr_multi(
-            "Ankaŭ forigi API-ŝlosilon el ŝlosilaro",  # eo
-            "Also delete the API key from system keyring",  # en
-            "Supprimer également la clé API du trousseau",  # fr
-        ),
-    ),
-    jes: bool = typer.Option(
-        False,
-        "--jes",
-        "-y",
-        help=tr_multi(
-            "Rekte konfirmi sen prompto",  # eo
-            "Confirm directly without prompt",  # en
-            "Confirmer directement sans invite",  # fr
-        ),
-    ),
+    keyring: bool = typer.Option(False, "--keyring",
+        help=tr_multi("Ankau forigi API-sxlosilon el sxlosilaro", "Also delete API key from keyring", "Supprimer aussi la cle API du trousseau")),
+    jes: bool = typer.Option(False, "--jes", "-y",
+        help=tr_multi("Rekte konfirmi sen prompto", "Confirm directly without prompt", "Confirmer directement sans invite")),
 ) -> None:
-    """Delete a provider configuration.
+    """Delete one or more provider configurations.
 
-    Removes the provider metadata from A-agento's database.
-    API keys are NOT removed from the system keyring unless --keyring is used.
-
-    If this was the default provider, a fallback is set automatically.
+    Accepts multiple positional arguments: UUIDs, provider names,
+    or "provider:profile" syntax.
 
     Examples:
         agento agordo forigi openai
-        agento agordo forigi openai --keyring -y
+        agento agordo forigi openai:work deepseek
+        agento agordo forigi a1b2c3d4-... openai:personal -y
     """
-    config = get_provider_config(provizanto)
-    if config is None:
-        error(
-            tr_multi(
-                f"Provizanto '{provizanto}' ne trovita.",  # eo
-                f"Provider '{provizanto}' not found.",  # en
-                f"Fournisseur '{provizanto}' introuvable.",  # fr
-            )
-        )
-        raise typer.Exit(1)
-
-    if not jes:
+    if not jes and len(provizantoj) > 1:
         confirm = typer.confirm(
             tr_multi(
-                f"Forigi agordojn por {provizanto}?",  # eo
-                f"Delete configuration for {provizanto}?",  # en
-                f"Supprimer la configuration pour {provizanto}?",  # fr
+                f"Forigi {len(provizantoj)} agordojn?",
+                f"Delete {len(provizantoj)} configurations?",
+                f"Supprimer {len(provizantoj)} configurations?",
             ),
             default=False,
         )
         if not confirm:
-            info(
-                tr_multi(
-                    "Nuligita.",  # eo
-                    "Cancelled.",  # en
-                    "Annulé.",  # fr
-                )
-            )
+            info(tr_multi("Nuligita.", "Cancelled.", "Annule."))
             return
 
-    deleted = _delete_provider_config(provizanto)
-    if not deleted:
-        error(
-            tr_multi(
-                f"Ne povis forigi agordojn por {provizanto}.",  # eo
-                f"Failed to delete configuration for {provizanto}.",  # en
-                f"Impossible de supprimer la configuration pour {provizanto}.",  # fr
-            )
-        )
-        raise typer.Exit(1)
+    deleted = 0
+    not_found = []
+    for ref in provizantoj:
+        if _delete_one(ref, keyring):
+            deleted += 1
+        else:
+            not_found.append(ref)
 
-    if keyring:
-        profile = config.get("profile", "default")
-        from A.core.ai import save_api_key as _save_key
-        _save_key("", provider=provizanto, profile=profile)
-
-    _maybe_reassign_default(provizanto)
-
-    success(
-        tr_multi(
-            f"Agordoj por {provizanto} forigitaj.",  # eo
-            f"Configuration for {provizanto} deleted.",  # en
-            f"Configuration pour {provizanto} supprimée.",  # fr
-        )
-    )
+    if deleted:
+        success(tr_multi(
+            f"Forigis {deleted} agordojn.",
+            f"Deleted {deleted} configurations.",
+            f"Supprime {deleted} configurations.",
+        ))
+    for ref in not_found:
+        warning(tr_multi(
+            f"Ne trovita: {ref}",
+            f"Not found: {ref}",
+            f"Introuvable: {ref}",
+        ))
 
 
 __all__ = [
