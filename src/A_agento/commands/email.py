@@ -42,9 +42,9 @@ def resumu(
         "--provizanto",
         "-p",
         help=tr_multi(
-            "LLM provizanto (openai/ollama/auto)",  # eo
-            "LLM provider (openai/ollama/auto)",  # en
-            "Fournisseur LLM (openai/ollama/auto)",  # fr
+            "Provizanto, provizanto:profilon, aux UUID. Vidu 'agento agordi ls' por listo.",  # eo
+            "Provider name, provider:profile, or config UUID. See 'agento agordi ls' for available.",  # en
+            "Nom du fournisseur, fournisseur:profil, ou UUID de config. Voir 'agento agordi ls' pour la liste.",  # fr
         ),
     ),
 ) -> None:
@@ -135,9 +135,9 @@ def respondi(
         "--provizanto",
         "-p",
         help=tr_multi(
-            "LLM provizanto",  # eo
-            "LLM provider",  # en
-            "Fournisseur LLM",  # fr
+            "Provizanto, provizanto:profilon, aux UUID. Vidu 'agento agordi ls' por listo.",  # eo
+            "Provider name, provider:profile, or config UUID. See 'agento agordi ls' for available.",  # en
+            "Nom du fournisseur, fournisseur:profil, ou UUID de config. Voir 'agento agordi ls' pour la liste.",  # fr
         ),
     ),
 ) -> None:
@@ -195,9 +195,9 @@ def agu(
         "--provizanto",
         "-p",
         help=tr_multi(
-            "LLM provizanto",  # eo
-            "LLM provider",  # en
-            "Fournisseur LLM",  # fr
+            "Provizanto, provizanto:profilon, aux UUID. Vidu 'agento agordi ls' por listo.",  # eo
+            "Provider name, provider:profile, or config UUID. See 'agento agordi ls' for available.",  # en
+            "Nom du fournisseur, fournisseur:profil, ou UUID de config. Voir 'agento agordi ls' pour la liste.",  # fr
         ),
     ),
 ) -> None:

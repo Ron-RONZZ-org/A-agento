@@ -202,4 +202,34 @@ __all__ = [
     "get_provider_config_by_uuid",
     "list_provider_configs",
     "delete_provider_config",
+    "parse_ref",
+    "find_config",
 ]
+
+# ── Reference parsing (shared between agordo_crud and commands) ─────────────
+
+
+def parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
+    """Parse a provider reference into (uuid, provider, profile).
+
+    Accepts UUID, provider:profile, or bare provider name.
+    """
+    if len(ref) == 36 and ref.count("-") == 4:
+        return (ref, None, None)
+    if len(ref) == 32 and all(c in "0123456789abcdef" for c in ref.lower()):
+        return (ref, None, None)
+    if ":" in ref:
+        parts = ref.split(":", 1)
+        return (None, parts[0], parts[1])
+    return (None, ref, None)
+
+
+def find_config(ref: str) -> dict | None:
+    """Find a provider config by UUID, provider, or provider:profile."""
+    from A_agento.data.provider_config import get_provider_config, get_provider_config_by_uuid
+    uuid, provider, profile = parse_ref(ref)
+    if uuid:
+        return get_provider_config_by_uuid(uuid)
+    if provider:
+        return get_provider_config(provider, profile or "default")
+    return None

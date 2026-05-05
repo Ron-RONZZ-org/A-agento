@@ -74,6 +74,18 @@ $ A retposto --help
 ╰───────────────────────────────────────────────────────────────╯
 ```
 
+### Provider Reference Format
+
+All commands accepting `--provizanto` support three formats:
+
+| Format | Example | Behavior |
+|--------|---------|----------|
+| Provider name | `--provizanto openai` | Uses default profile key |
+| Provider:profile | `--provizanto "openai:work"` | Uses named profile key |
+| Config UUID | `--provizanto a1b2c3d4-...` | Uses specific config by UUID |
+
+Discover available UUIDs and profiles via `agento agordi ls`.
+
 ### Sub-app Groups
 
 - `agento agordi` — Provider configuration (default, aldoni, vidi, modifi, forigi, ls, testi)
