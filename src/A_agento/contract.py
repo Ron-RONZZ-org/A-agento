@@ -24,7 +24,7 @@ class RetpostoService:
 
 If RetpostoService is not available, A-agento falls back to direct SQL.
 
-### Expected Schema: mesagxoj table
+### Expected Schema: mesagoj table
 
 | Column | Type | Description |
 |--------|------|-------------|

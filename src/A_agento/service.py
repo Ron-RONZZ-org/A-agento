@@ -212,7 +212,7 @@ class AgentService:
 
             db = get_db()
             return db.execute_one(
-                "SELECT * FROM mesagxoj WHERE uuid = ?", (uuid,)
+                "SELECT * FROM mesagoj WHERE uuid = ?", (uuid,)
             )
         except ImportError:
             return None
@@ -242,7 +242,7 @@ class AgentService:
             from A_lien.data.storage import get_db
 
             db = get_db()
-            result = db.execute_one("SELECT COUNT(*) as count FROM mesagxoj")
+            result = db.execute_one("SELECT COUNT(*) as count FROM mesagoj")
             return result and result.get("count", 0) > 0
         except ImportError:
             return False
@@ -292,7 +292,7 @@ class AgentService:
             from A_lien.data.storage import get_db
 
             db = get_db()
-            sql = "SELECT * FROM mesagxoj"
+            sql = "SELECT * FROM mesagoj"
             params = []
 
             if unread_only:
