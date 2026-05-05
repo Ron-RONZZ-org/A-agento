@@ -27,7 +27,8 @@ ollama = ["httpx>=0.27.0"]
 agento = "A_agento.cli:app"
 
 [project.entry-points."A.ai_commands"]
-lien = "A_agento.registration:get_lien_ai_app"
+# The name MUST match the A.commands entry point name (e.g. "retposto" for A-lien)
+retposto = "A_agento.registration:get_lien_ai_app"
 encik = "A_agento.registration:get_encik_ai_app"
 
 [tool.hatch.build.targets.wheel]
