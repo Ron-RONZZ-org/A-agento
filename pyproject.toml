@@ -26,6 +26,10 @@ ollama = ["httpx>=0.27.0"]
 [project.entry-points."A.commands"]
 agento = "A_agento.cli:app"
 
+[project.entry-points."A.ai_commands"]
+lien = "A_agento.registration:get_lien_ai_app"
+encik = "A_agento.registration:get_encik_ai_app"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/A_agento"]
 

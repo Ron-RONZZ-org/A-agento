@@ -21,9 +21,9 @@ class TestResumuCommand:
         assert result.exit_code == 0
         assert "resumu" in result.output.lower()
 
-    @patch("A_agento.cli.get_provider")
-    @patch("A_agento.cli.get_agent_service")
-    def test_resumu_basic(self, mock_agent, mock_provider):
+    @patch("A_agento.service.get_agent_service")
+    @patch("A.core.ai.get_provider")
+    def test_resumu_basic(self, mock_provider, mock_agent):
         """Test resumu command basic execution."""
         # Setup mocks
         mock_provider_instance = Mock()
@@ -39,8 +39,8 @@ class TestResumuCommand:
         # Should complete without error (may show "no emails" message)
         assert result.exit_code == 0
 
-    @patch("A_agento.cli.get_agent_service")
-    @patch("A_agento.cli.get_provider")
+    @patch("A_agento.service.get_agent_service")
+    @patch("A.core.ai.get_provider")
     def test_resumu_provider_option(self, mock_provider, mock_agent):
         """Test resumu with explicit provider."""
         mock_provider_instance = Mock()

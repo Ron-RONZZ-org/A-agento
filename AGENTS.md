@@ -32,17 +32,46 @@ All cross-module imports use try/except with graceful fallback.
 
 ```
 src/A_agento/
-├── __init__.py           # exports: app
-├── cli.py               # Typer app (resumu, respondu, agu)
-├── agordo.py            # Provider config sub-app (default, sxlosilo, montri, testi)
-├── stilo.py             # Style sample sub-app (aldoni, listo, forigu, aktiva)
-├── service.py           # AgentService orchestration
-├── prompts.py           # Prompt templates
-├── contract.py          # Service contract with A-lien
+├── __init__.py             # exports: app
+├── cli.py                 # Typer app (resumu, respondi, agu, generi)
+├── agordo.py              # Provider config sub-app (default, sxlosilo, montri, testi)
+├── stilo.py               # Style sample sub-app (aldoni, listo, forigu, aktiva)
+├── registration.py        # AI sub-app factories for cross-module injection
+├── service.py             # AgentService orchestration
+├── prompts.py             # Prompt templates
+├── contract.py            # Service contract with A-lien
+├── commands/
+│   ├── __init__.py
+│   ├── _helpers.py         # Shared helpers (get_provider_or_exit, confirm_action)
+│   ├── email.py            # resumu, respondi, agu
+│   └── knowledge.py        # generi (moved from A-encik)
 └── data/
     ├── __init__.py
-    ├── storage.py        # SQLite for agent metadata + history + styloj
-    └── provider_config.py # Provider metadata storage (non-secret config)
+    ├── storage.py          # SQLite for agent metadata + history + styloj
+    └── provider_config.py  # Provider metadata storage (non-secret config)
+```
+
+### Cross-Module AI Injection
+
+A-agento registers AI commands for compatible A-modules via the `A.ai_commands` entry point group. A-core's `plugin_loader` (`A.core.plugin_loader`) discovers these on first use and injects them as `ai` sub-apps:
+
+| Module   | AI Commands                 | Entry point                      |
+|----------|-----------------------------|----------------------------------|
+| A-lien   | resumu, respondi, agu       | `A_agento.registration:get_lien_ai_app` |
+| A-encik  | generi                      | `A_agento.registration:get_encik_ai_app` |
+
+This creates a separate `ai` section in the module's help output:
+
+```
+$ A retposto --help
+╭─ retposto ────────────────────────────────────────────────────╮
+│ sendi      Send emails                                        │
+│ preni      Fetch emails                                       │
+╰───────────────────────────────────────────────────────────────╯
+╭─ ai ──────────────────────────────────────────────────────────╮
+│ resumu     Summarize emails (AI via A-agento)                 │
+│ respondi   Generate smart reply (AI via A-agento)             │
+╰───────────────────────────────────────────────────────────────╯
 ```
 
 ### Sub-app Groups
