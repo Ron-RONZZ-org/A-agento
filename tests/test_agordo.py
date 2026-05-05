@@ -111,14 +111,18 @@ class TestSlosiloCommand:
         assert result.exit_code == 0
         assert "Ollama" in result.output
 
-    def test_slosilo_invalid_provider(self):
-        """Test slosilo with invalid provider."""
-        result = runner.invoke(
-            app,
-            ["agordo", "slosilo", "invalid", "--key", "test"],
-        )
-        assert result.exit_code != 0
-        assert "Nevalida" in result.output or "Invalid" in result.output
+    def test_slosilo_custom_provider(self):
+        """Test slosilo accepts custom provider names (OpenAI-compatible)."""
+        with patch("A_agento.agordo.save_api_key", return_value=True), \
+             patch("A_agento.agordo.save_provider_config"), \
+             patch("A_agento.agordo.list_provider_configs", return_value=[]), \
+             patch("A_agento.agordo.set_default_provider"):
+            result = runner.invoke(
+                app,
+                ["agordo", "slosilo", "my-custom-endpoint", "--key", "test"],
+            )
+            assert result.exit_code == 0
+            assert "konservita" in result.output or "saved" in result.output
 
     def test_slosilo_missing_provider(self):
         """Test slosilo without provider argument."""

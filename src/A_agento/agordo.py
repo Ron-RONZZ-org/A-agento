@@ -126,9 +126,9 @@ def slosilo(
     provizanto: str = typer.Argument(
         ...,
         help=tr_multi(
-            "Provizanto (huggingface/deepseek/openai)",  # eo
-            "Provider (huggingface/deepseek/openai)",  # en
-            "Fournisseur (huggingface/deepseek/openai)",  # fr
+            "Provizanto-nomo (huggingface, deepseek, openai, aux) iu ajn nomo por OpenAI-kongrua finpunkto)",  # eo
+            "Provider name (huggingface, deepseek, openai, or any name for OpenAI-compatible endpoint)",  # en
+            "Nom du fournisseur (huggingface, deepseek, openai, ou tout nom pour un point de terminaison compatible OpenAI)",  # fr
         ),
     ),
     key: Optional[str] = typer.Option(
@@ -195,8 +195,6 @@ def slosilo(
         )
         return
 
-    _validate_provider(provizanto)
-
     # Interactive prompt if no key provided
     if not key:
         import getpass
@@ -242,9 +240,13 @@ def slosilo(
     )
 
     # If this is the first key, set as default provider
+    # Use try/except to handle custom provider names not in A-core's known set
     existing = list_provider_configs()
     if len(existing) <= 1:
-        set_default_provider(provizanto)
+        try:
+            set_default_provider(provizanto)
+        except ValueError:
+            pass  # Custom provider name — can't set as default, that's fine
 
     success(
         tr_multi(
