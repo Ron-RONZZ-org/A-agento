@@ -17,48 +17,9 @@ from A_agento.data.provider_config import (
     get_provider_config_by_uuid,
     list_provider_configs,
     delete_provider_config as _delete_provider_config,
+    parse_ref as _parse_ref,
+    find_config as _find_config,
 )
-
-
-def _parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
-    """Parse a provider reference into (uuid, provider, profile).
-
-    Accepts formats: UUID, provider, or provider:profile.
-
-    Args:
-        ref: UUID, provider name, or "provider:profile" string.
-
-    Returns:
-        Tuple of (uuid, provider, profile). At most one is set.
-    """
-    # Check if it's a UUID (36 chars with hyphens or 32 hex)
-    if len(ref) == 36 and ref.count("-") == 4:
-        return (ref, None, None)
-    if len(ref) == 32 and all(c in "0123456789abcdef" for c in ref.lower()):
-        return (ref, None, None)
-    # Check for provider:profile syntax
-    if ":" in ref:
-        parts = ref.split(":", 1)
-        return (None, parts[0], parts[1])
-    # Bare provider name
-    return (None, ref, None)
-
-
-def _find_config(ref: str) -> dict | None:
-    """Find a provider config by UUID, provider, or provider:profile.
-
-    Args:
-        ref: UUID, provider name, or "provider:profile".
-
-    Returns:
-        Config dict or None.
-    """
-    uuid, provider, profile = _parse_ref(ref)
-    if uuid:
-        return get_provider_config_by_uuid(uuid)
-    if provider:
-        return get_provider_config(provider, profile or "default")
-    return None
 
 
 # ── vidi — view single provider ──────────────────────────────────────────

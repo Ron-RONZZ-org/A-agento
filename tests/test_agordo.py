@@ -139,7 +139,7 @@ class TestVidiCommand:
         assert "vidi" in result.output.lower()
 
     @patch("A_agento.agordo_crud.get_api_key")
-    @patch("A_agento.agordo_crud.get_provider_config")
+    @patch("A_agento.data.provider_config.get_provider_config")
     def test_vidi_existing(self, mock_get_cfg, mock_get_key):
         """Test viewing an existing provider."""
         mock_get_cfg.return_value = {
@@ -157,7 +157,7 @@ class TestVidiCommand:
         assert result.exit_code == 0
         assert "openai" in result.output.lower()
 
-    @patch("A_agento.agordo_crud.get_provider_config", return_value=None)
+    @patch("A_agento.data.provider_config.get_provider_config", return_value=None)
     def test_vidi_not_found(self, mock_get_cfg):
         """Test viewing a non-existent provider."""
         result = runner.invoke(app, ["agordi", "vidi", "nonexistent"])
@@ -174,7 +174,7 @@ class TestModifiCommand:
         assert result.exit_code == 0
         assert "modifi" in result.output.lower()
 
-    @patch("A_agento.agordo_crud.get_provider_config")
+    @patch("A_agento.data.provider_config.get_provider_config")
     @patch("A_agento.agordo_crud.save_provider_config")
     def test_modifi_not_found(self, mock_save_cfg, mock_get_cfg):
         """Test modifying a non-existent provider."""
@@ -182,7 +182,7 @@ class TestModifiCommand:
         result = runner.invoke(app, ["agordi", "modifi", "nonexistent"])
         assert result.exit_code != 0
 
-    @patch("A_agento.agordo_crud.get_provider_config")
+    @patch("A_agento.data.provider_config.get_provider_config")
     @patch("A_agento.agordo_crud.save_provider_config")
     def test_modifi_update_base_url(self, mock_save_cfg, mock_get_cfg):
         """Test modifying base URL of an existing provider."""

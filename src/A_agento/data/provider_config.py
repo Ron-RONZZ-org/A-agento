@@ -126,18 +126,18 @@ def get_provider_config(
 
 
 def get_provider_config_by_uuid(uuid: str) -> dict[str, Any] | None:
-    """Get provider configuration by UUID.
+    """Get provider configuration by UUID (supports prefix).
 
     Args:
-        uuid: Entry UUID
+        uuid: Entry UUID or prefix (e.g. "a1b2c3d4")
 
     Returns:
-        Config dict or None
+        Config dict or None. If prefix matches multiple, returns the first.
     """
     db = get_db()
     return db.execute_one(
-        "SELECT * FROM provizanto_agordoj WHERE uuid = ?",
-        (uuid,),
+        "SELECT * FROM provizanto_agordoj WHERE uuid LIKE ?",
+        (f"{uuid}%",),
     )
 
 
@@ -212,16 +212,24 @@ __all__ = [
 def parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
     """Parse a provider reference into (uuid, provider, profile).
 
-    Accepts UUID, provider:profile, or bare provider name.
+    Accepts UUID (full or 8+ hex prefix), provider:profile, or bare provider name.
+
+    A reference is treated as UUID if it contains hex digits only (or hex with
+    hyphens) and is at least 8 characters long.
     """
-    if len(ref) == 36 and ref.count("-") == 4:
-        return (ref, None, None)
-    if len(ref) == 32 and all(c in "0123456789abcdef" for c in ref.lower()):
-        return (ref, None, None)
-    if ":" in ref:
-        parts = ref.split(":", 1)
+    stripped = ref.strip()
+    # Full UUID with hyphens
+    if len(stripped) == 36 and stripped.count("-") == 4:
+        return (stripped, None, None)
+    # UUID prefix or full hex UUID (8-32 chars, all hex)
+    if len(stripped) >= 8 and len(stripped) <= 32 and all(c in "0123456789abcdef" for c in stripped.lower()):
+        return (stripped, None, None)
+    # Provider:profile syntax
+    if ":" in stripped:
+        parts = stripped.split(":", 1)
         return (None, parts[0], parts[1])
-    return (None, ref, None)
+    # Bare provider name
+    return (None, stripped, None)
 
 
 def find_config(ref: str) -> dict | None:
