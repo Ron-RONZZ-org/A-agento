@@ -34,7 +34,7 @@ All cross-module imports use try/except with graceful fallback.
 src/A_agento/
 ├── __init__.py             # exports: app
 ├── cli.py                 # Typer app (resumu, respondi, agu, generi)
-├── agordo.py              # Provider config sub-app (default, sxlosilo, montri, testi)
+├── agordo.py              # Provider config sub-app (default, slosilo, montri, testi)
 ├── stilo.py               # Style sample sub-app (aldoni, listo, forigu, aktiva)
 ├── registration.py        # AI sub-app factories for cross-module injection
 ├── service.py             # AgentService orchestration
@@ -76,7 +76,7 @@ $ A retposto --help
 
 ### Sub-app Groups
 
-- `agento agordo` — Provider configuration (default, sxlosilo, montri, testi)
+- `agento agordo` — Provider configuration (default, slosilo, montri, testi)
 - `agento stilo` — Writing style samples (aldoni, listo, forigu, aktiva)
 
 ## Security Rules

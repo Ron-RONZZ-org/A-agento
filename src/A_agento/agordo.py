@@ -4,7 +4,7 @@ Sub-app for the `agordo` command group.
 
 Commands:
 - default: Set default LLM provider
-- sxlosilo: Configure API key for a provider
+- slosilo: Configure API key for a provider
 - ls: Show current provider configuration
 - testi: Test provider connectivity
 """
@@ -118,11 +118,11 @@ def default(
         raise typer.Exit(1) from e
 
 
-# ── sxlosilo — configure API key ──────────────────────────────────────────
+# ── slosilo — configure API key ──────────────────────────────────────────
 
 
-@agordo_app.command("sxlosilo")
-def sxlosilo(
+@agordo_app.command("slosilo")
+def slosilo(
     provizanto: str = typer.Argument(
         ...,
         help=tr_multi(
@@ -180,10 +180,10 @@ def sxlosilo(
     If --key is omitted, you will be prompted interactively (input hidden).
 
     Examples:
-        agento agordo sxlosilo openai
-        agento agordo sxlosilo huggingface --key hf_abc123
-        agento agordo sxlosilo openai --key sk-... --base-url https://custom.endpoint/v1
-        agento agordo sxlosilo openai --noto work --modelo gpt-4
+        agento agordo slosilo openai
+        agento agordo slosilo huggingface --key hf_abc123
+        agento agordo slosilo openai --key sk-... --base-url https://custom.endpoint/v1
+        agento agordo slosilo openai --noto work --modelo gpt-4
     """
     if provizanto == "ollama":
         warning(
@@ -255,6 +255,29 @@ def sxlosilo(
     )
 
 
+# ── Backward-compatible deprecated alias ──────────────────────────────
+
+
+@agordo_app.command("sxlosilo", hidden=True)
+def sxlosilo_deprecated(
+    provizanto: str = typer.Argument(...),
+    key: Optional[str] = typer.Option(None, "--key", "-k"),
+    base_url: Optional[str] = typer.Option(None, "--base-url", "-b"),
+    noto: Optional[str] = typer.Option(None, "--noto", "-n"),
+    modelo: Optional[str] = typer.Option(None, "--modelo", "-m"),
+) -> None:
+    """[DEPRECATED] Use 'agordo slosilo' instead."""
+    from A import warning as _warn
+    _warn(
+        tr_multi(
+            "'agordo sxlosilo' estas eksdata. Uzu 'agordo slosilo'.",
+            "'agordo sxlosilo' is deprecated. Use 'agordo slosilo'.",
+            "'agordo sxlosilo' est obsolète. Utilisez 'agordo slosilo'.",
+        )
+    )
+    slosilo(provizanto, key=key, base_url=base_url, noto=noto, modelo=modelo)
+
+
 # ── montri — show configuration ───────────────────────────────────────────
 
 
@@ -291,9 +314,9 @@ def agordo_ls() -> None:
     if not configs:
         info(
             tr_multi(
-                "Neniuj provizantoj agorditaj. Uzu 'agordo sxlosilo' por aldoni ŝlosilon.",  # eo
-                "No providers configured. Use 'agordo sxlosilo' to add a key.",  # en
-                "Aucun fournisseur configuré. Utilisez 'agordo sxlosilo' pour ajouter une clé.",  # fr
+                "Neniuj provizantoj agorditaj. Uzu 'agordo slosilo' por aldoni ŝlosilon.",  # eo
+                "No providers configured. Use 'agordo slosilo' to add a key.",  # en
+                "Aucun fournisseur configuré. Utilisez 'agordo slosilo' pour ajouter une clé.",  # fr
             )
         )
         return

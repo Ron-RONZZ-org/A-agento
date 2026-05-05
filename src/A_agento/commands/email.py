@@ -22,7 +22,7 @@ def resumu(
         "--limo",
         "-l",
         help=tr_multi(
-            "Maksimumo da retposxtoj",  # eo
+            "Maksimumo da retpostoj",  # eo
             "Maximum emails",  # en
             "Nombre maximum d'emails",  # fr
         ),
@@ -32,7 +32,7 @@ def resumu(
         "--nur-ne-legitaj",
         "-n",
         help=tr_multi(
-            "Nur ne legitaj retposxtoj",  # eo
+            "Nur ne legitaj retpostoj",  # eo
             "Only unread emails",  # en
             "Uniquement les emails non lus",  # fr
         ),
@@ -64,7 +64,7 @@ def resumu(
     agent = get_agent_service()
 
     info(tr_multi(
-        "Sxargas retposxtojn...",  # eo
+        "Sargas retpostojn...",  # eo
         "Loading emails...",  # en
         "Chargement des emails...",  # fr
     ))
@@ -76,7 +76,7 @@ def resumu(
     )
 
     if not summaries:
-        info(tr_multi('Neniuj retposxtoj por resumi.', 'No emails to summarize.', 'Aucun email a resumer.'))  # No emails to summarize
+        info(tr_multi('Neniuj retpostoj por resumi.', 'No emails to summarize.', 'Aucun email a resumer.'))  # No emails to summarize
         return
 
     # Display summaries
@@ -115,7 +115,7 @@ def respondi(
     uuid: str = typer.Argument(
         ...,
         help=tr_multi(
-            "Retposxta UUID",  # eo
+            "Retposta UUID",  # eo
             "Email UUID",  # en
             "UUID de l'email",  # fr
         ),
@@ -218,7 +218,7 @@ def agu(
     agent = get_agent_service()
 
     info(tr_multi(
-        "Analizas retposxton...",  # eo
+        "Analizas retposton...",  # eo
         "Analyzing email...",  # en
         "Analyse de l'email...",  # fr
     ))

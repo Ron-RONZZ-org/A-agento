@@ -480,7 +480,7 @@ class AgentService:
         # Parse JSON with robust extraction
         actions = _extract_json(response)
         if not actions:
-            info(tr_multi("Nepovis analizi la retposxton.", "Could not parse the email.", "Impossible d'analyser l'email."))  # Could not parse email
+            info(tr_multi("Nepovis analizi la retposton.", "Could not parse the email.", "Impossible d'analyser l'email."))  # Could not parse email
             return []
 
         suggestions = []

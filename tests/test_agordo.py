@@ -42,20 +42,20 @@ class TestDefaultCommand:
         assert "Nevalida" in result.output or "Invalid" in result.output
 
 
-class TestSxlosiloCommand:
-    """Tests for `agordo sxlosilo`."""
+class TestSlosiloCommand:
+    """Tests for `agordo slosilo`."""
 
-    def test_sxlosilo_shows_help(self):
-        """Test sxlosilo subcommand shows help."""
-        result = runner.invoke(app, ["agordo", "sxlosilo", "--help"])
+    def test_slosilo_shows_help(self):
+        """Test slosilo subcommand shows help."""
+        result = runner.invoke(app, ["agordo", "slosilo", "--help"])
         assert result.exit_code == 0
-        assert "sxlosilo" in result.output.lower()
+        assert "slosilo" in result.output.lower()
 
     @patch("A_agento.agordo.save_api_key")
     @patch("A_agento.agordo.save_provider_config")
     @patch("A_agento.agordo.list_provider_configs")
     @patch("A_agento.agordo.set_default_provider")
-    def test_sxlosilo_with_key(
+    def test_slosilo_with_key(
         self, mock_set_default, mock_list, mock_save_cfg, mock_save_key
     ):
         """Test configuring a key with --key option."""
@@ -65,7 +65,7 @@ class TestSxlosiloCommand:
         result = runner.invoke(
             app,
             [
-                "agordo", "sxlosilo", "openai",
+                "agordo", "slosilo", "openai",
                 "--key", "sk-test123",
                 "--noto", "work",
                 "--modelo", "gpt-4",
@@ -82,7 +82,7 @@ class TestSxlosiloCommand:
     @patch("A_agento.agordo.save_api_key")
     @patch("A_agento.agordo.save_provider_config")
     @patch("A_agento.agordo.list_provider_configs")
-    def test_sxlosilo_with_base_url(
+    def test_slosilo_with_base_url(
         self, mock_list, mock_save_cfg, mock_save_key
     ):
         """Test configuring a key with custom base URL."""
@@ -92,7 +92,7 @@ class TestSxlosiloCommand:
         result = runner.invoke(
             app,
             [
-                "agordo", "sxlosilo", "openai",
+                "agordo", "slosilo", "openai",
                 "--key", "sk-test123",
                 "--base-url", "https://custom.endpoint/v1",
             ],
@@ -102,27 +102,27 @@ class TestSxlosiloCommand:
             "sk-test123", provider="openai", profile="default"
         )
 
-    def test_sxlosilo_ollama_warns(self):
-        """Test sxlosilo with ollama shows warning."""
+    def test_slosilo_ollama_warns(self):
+        """Test slosilo with ollama shows warning."""
         result = runner.invoke(
             app,
-            ["agordo", "sxlosilo", "ollama", "--key", "dummy"],
+            ["agordo", "slosilo", "ollama", "--key", "dummy"],
         )
         assert result.exit_code == 0
         assert "Ollama" in result.output
 
-    def test_sxlosilo_invalid_provider(self):
-        """Test sxlosilo with invalid provider."""
+    def test_slosilo_invalid_provider(self):
+        """Test slosilo with invalid provider."""
         result = runner.invoke(
             app,
-            ["agordo", "sxlosilo", "invalid", "--key", "test"],
+            ["agordo", "slosilo", "invalid", "--key", "test"],
         )
         assert result.exit_code != 0
         assert "Nevalida" in result.output or "Invalid" in result.output
 
-    def test_sxlosilo_missing_provider(self):
-        """Test sxlosilo without provider argument."""
-        result = runner.invoke(app, ["agordo", "sxlosilo"])
+    def test_slosilo_missing_provider(self):
+        """Test slosilo without provider argument."""
+        result = runner.invoke(app, ["agordo", "slosilo"])
         assert result.exit_code != 0
         assert "Missing argument" in result.output
 
@@ -225,6 +225,6 @@ class TestAgordoGroup:
         result = runner.invoke(app, ["agordo", "--help"])
         assert result.exit_code == 0
         assert "default" in result.output
-        assert "sxlosilo" in result.output
+        assert "slosilo" in result.output
         assert "ls" in result.output
         assert "testi" in result.output

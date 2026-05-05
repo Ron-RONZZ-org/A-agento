@@ -13,7 +13,7 @@ from A_agento.commands.knowledge import generi
 app = typer.Typer(
     name="agento",
     help=tr_multi(
-        "A-agento — AI retposxta agento kun LLM",  # eo
+        "A-agento — AI retposta agento kun LLM",  # eo
         "A-agento — AI email agent with LLM",  # en
         "A-agento — Agent email IA avec LLM",  # fr
     ),
