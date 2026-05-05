@@ -31,6 +31,24 @@ PROVIDER_CONFIG_SCHEMA = {
 }
 
 
+def _ensure_uuid_column() -> None:
+    """Add uuid column to existing tables that lack it (migration)."""
+    db = get_db()
+    cols = db.execute("PRAGMA table_info(provizanto_agordoj)")
+    col_names = {c["name"] for c in cols}
+    if "uuid" not in col_names:
+        db.execute("ALTER TABLE provizanto_agordoj ADD COLUMN uuid TEXT")
+        # Backfill UUIDs for existing rows
+        rows = db.execute("SELECT rowid FROM provizanto_agordoj WHERE uuid IS NULL")
+        for row in rows:
+            new_uuid = str(uuid_mod.uuid4())
+            db.execute("UPDATE provizanto_agordoj SET uuid = ? WHERE rowid = ?", (new_uuid, row["rowid"]))
+
+
+# Run migration on import
+_ensure_uuid_column()
+
+
 def save_provider_config(
     provider: str,
     profile: str = "default",

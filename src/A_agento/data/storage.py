@@ -56,7 +56,8 @@ _SCHEMA = {
         )
     """,
     "provizanto_agordoj": """
-        CREATE TABLE provizanto_agordoj (
+        CREATE TABLE IF NOT EXISTS provizanto_agordoj (
+            uuid TEXT PRIMARY KEY,
             provider TEXT NOT NULL,
             profile TEXT NOT NULL DEFAULT 'default',
             noto TEXT DEFAULT '',
@@ -64,7 +65,7 @@ _SCHEMA = {
             base_url TEXT DEFAULT '',
             kreita_je TEXT NOT NULL,
             modifita_je TEXT NOT NULL,
-            PRIMARY KEY (provider, profile)
+            UNIQUE(provider, profile)
         )
     """,
 }
