@@ -127,15 +127,18 @@ def delete_provider_config(provider: str, profile: str = "default") -> bool:
         True if deleted, False if not found
     """
     db = get_db()
+    # Check existence first (DELETE + COUNT(*) would return 0 for missing entries too)
+    existing = db.execute_one(
+        "SELECT 1 FROM provizanto_agordoj WHERE provider = ? AND profile = ?",
+        (provider, profile),
+    )
+    if existing is None:
+        return False
     db.execute(
         "DELETE FROM provizanto_agordoj WHERE provider = ? AND profile = ?",
         (provider, profile),
     )
-    remaining = db.execute_one(
-        "SELECT COUNT(*) AS cnt FROM provizanto_agordoj WHERE provider = ? AND profile = ?",
-        (provider, profile),
-    )
-    return remaining is not None and remaining.get("cnt", 0) == 0
+    return True
 
 
 __all__ = [

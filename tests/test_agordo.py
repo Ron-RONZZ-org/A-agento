@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import Mock, patch
 from typer.testing import CliRunner
 
@@ -42,30 +41,30 @@ class TestDefaultCommand:
         assert "Nevalida" in result.output or "Invalid" in result.output
 
 
-class TestSlosiloCommand:
-    """Tests for `agordo slosilo`."""
+class TestAldoniCommand:
+    """Tests for `agordo aldoni` (formerly slosilo)."""
 
-    def test_slosilo_shows_help(self):
-        """Test slosilo subcommand shows help."""
-        result = runner.invoke(app, ["agordo", "slosilo", "--help"])
+    def test_aldoni_shows_help(self):
+        """Test aldoni subcommand shows help."""
+        result = runner.invoke(app, ["agordo", "aldoni", "--help"])
         assert result.exit_code == 0
-        assert "slosilo" in result.output.lower()
+        assert "aldoni" in result.output.lower()
 
-    @patch("A_agento.agordo.save_api_key")
-    @patch("A_agento.agordo.save_provider_config")
-    @patch("A_agento.agordo.list_provider_configs")
     @patch("A_agento.agordo.set_default_provider")
-    def test_slosilo_with_key(
-        self, mock_set_default, mock_list, mock_save_cfg, mock_save_key
+    @patch("A_agento.agordo.list_provider_configs")
+    @patch("A_agento.agordo.save_provider_config")
+    @patch("A_agento.agordo.save_api_key")
+    def test_aldoni_with_key(
+        self, mock_save_key, mock_save_cfg, mock_list, mock_set_default
     ):
-        """Test configuring a key with --key option."""
+        """Test adding a key with --key option."""
         mock_list.return_value = []  # No existing configs
         mock_save_key.return_value = True
 
         result = runner.invoke(
             app,
             [
-                "agordo", "slosilo", "openai",
+                "agordo", "aldoni", "openai",
                 "--key", "sk-test123",
                 "--noto", "work",
                 "--modelo", "gpt-4",
@@ -76,23 +75,22 @@ class TestSlosiloCommand:
             "sk-test123", provider="openai", profile="work"
         )
         mock_save_cfg.assert_called_once()
-        # Should set as default since no existing configs
         mock_set_default.assert_called_once_with("openai")
 
-    @patch("A_agento.agordo.save_api_key")
-    @patch("A_agento.agordo.save_provider_config")
     @patch("A_agento.agordo.list_provider_configs")
-    def test_slosilo_with_base_url(
-        self, mock_list, mock_save_cfg, mock_save_key
+    @patch("A_agento.agordo.save_provider_config")
+    @patch("A_agento.agordo.save_api_key")
+    def test_aldoni_with_base_url(
+        self, mock_save_key, mock_save_cfg, mock_list
     ):
-        """Test configuring a key with custom base URL."""
+        """Test adding a key with custom base URL."""
         mock_list.return_value = [{"provider": "ollama"}]  # Existing config
         mock_save_key.return_value = True
 
         result = runner.invoke(
             app,
             [
-                "agordo", "slosilo", "openai",
+                "agordo", "aldoni", "openai",
                 "--key", "sk-test123",
                 "--base-url", "https://custom.endpoint/v1",
             ],
@@ -102,59 +100,198 @@ class TestSlosiloCommand:
             "sk-test123", provider="openai", profile="default"
         )
 
-    def test_slosilo_ollama_warns(self):
-        """Test slosilo with ollama shows warning."""
+    def test_aldoni_ollama_warns(self):
+        """Test aldoni with ollama shows warning."""
         result = runner.invoke(
             app,
-            ["agordo", "slosilo", "ollama", "--key", "dummy"],
+            ["agordo", "aldoni", "ollama", "--key", "dummy"],
         )
         assert result.exit_code == 0
         assert "Ollama" in result.output
 
-    def test_slosilo_custom_provider(self):
-        """Test slosilo accepts custom provider names (OpenAI-compatible)."""
+    def test_aldoni_custom_provider(self):
+        """Test aldoni accepts custom provider names (OpenAI-compatible)."""
         with patch("A_agento.agordo.save_api_key", return_value=True), \
              patch("A_agento.agordo.save_provider_config"), \
              patch("A_agento.agordo.list_provider_configs", return_value=[]), \
              patch("A_agento.agordo.set_default_provider"):
             result = runner.invoke(
                 app,
-                ["agordo", "slosilo", "my-custom-endpoint", "--key", "test"],
+                ["agordo", "aldoni", "my-custom-endpoint", "--key", "test"],
             )
             assert result.exit_code == 0
             assert "konservita" in result.output or "saved" in result.output
 
-    def test_slosilo_missing_provider(self):
-        """Test slosilo without provider argument."""
-        result = runner.invoke(app, ["agordo", "slosilo"])
+    def test_aldoni_missing_provider(self):
+        """Test aldoni without provider argument."""
+        result = runner.invoke(app, ["agordo", "aldoni"])
         assert result.exit_code != 0
         assert "Missing argument" in result.output
 
 
-class TestMontriCommand:
-    """Tests for `agordo montri`."""
+class TestVidiCommand:
+    """Tests for `agordo vidi`."""
 
-    def test_montri_shows_help(self):
-        """Test ls (formerly montri) subcommand shows help."""
+    def test_vidi_shows_help(self):
+        """Test vidi subcommand shows help."""
+        result = runner.invoke(app, ["agordo", "vidi", "--help"])
+        assert result.exit_code == 0
+        assert "vidi" in result.output.lower()
+
+    @patch("A_agento.agordo_crud.get_api_key")
+    @patch("A_agento.agordo_crud.get_provider_config")
+    def test_vidi_existing(self, mock_get_cfg, mock_get_key):
+        """Test viewing an existing provider."""
+        mock_get_cfg.return_value = {
+            "provider": "openai",
+            "profile": "default",
+            "modelo": "gpt-4",
+            "base_url": "https://api.openai.com/v1",
+            "noto": "work",
+            "kreita_je": "2024-01-01T00:00:00",
+            "modifita_je": "2024-01-02T00:00:00",
+        }
+        mock_get_key.return_value = "sk-test123"
+
+        result = runner.invoke(app, ["agordo", "vidi", "openai"])
+        assert result.exit_code == 0
+        assert "openai" in result.output.lower()
+
+    @patch("A_agento.agordo_crud.get_provider_config", return_value=None)
+    def test_vidi_not_found(self, mock_get_cfg):
+        """Test viewing a non-existent provider."""
+        result = runner.invoke(app, ["agordo", "vidi", "nonexistent"])
+        assert result.exit_code != 0
+        assert "ne trovita" in result.output or "not found" in result.output
+
+
+class TestModifiCommand:
+    """Tests for `agordo modifi`."""
+
+    def test_modifi_shows_help(self):
+        """Test modifi subcommand shows help."""
+        result = runner.invoke(app, ["agordo", "modifi", "--help"])
+        assert result.exit_code == 0
+        assert "modifi" in result.output.lower()
+
+    @patch("A_agento.agordo_crud.get_provider_config")
+    @patch("A_agento.agordo_crud.save_provider_config")
+    def test_modifi_not_found(self, mock_save_cfg, mock_get_cfg):
+        """Test modifying a non-existent provider."""
+        mock_get_cfg.return_value = None
+        result = runner.invoke(app, ["agordo", "modifi", "nonexistent"])
+        assert result.exit_code != 0
+
+    @patch("A_agento.agordo_crud.get_provider_config")
+    @patch("A_agento.agordo_crud.save_provider_config")
+    def test_modifi_update_base_url(self, mock_save_cfg, mock_get_cfg):
+        """Test modifying base URL of an existing provider."""
+        mock_get_cfg.return_value = {
+            "provider": "openai",
+            "profile": "default",
+            "modelo": "gpt-4",
+            "base_url": "https://old.endpoint/v1",
+            "noto": "",
+        }
+
+        result = runner.invoke(
+            app,
+            ["agordo", "modifi", "openai", "--base-url", "https://new.endpoint/v1"],
+        )
+        assert result.exit_code == 0
+
+
+class TestForigiCommand:
+    """Tests for `agordo forigi`."""
+
+    def test_forigi_shows_help(self):
+        """Test forigi subcommand shows help."""
+        result = runner.invoke(app, ["agordo", "forigi", "--help"])
+        assert result.exit_code == 0
+        assert "forigi" in result.output.lower()
+
+    @patch("A_agento.agordo_crud.get_provider_config", return_value=None)
+    def test_forigi_not_found(self, mock_get_cfg):
+        """Test deleting a non-existent provider."""
+        result = runner.invoke(app, ["agordo", "forigi", "nonexistent"])
+        assert result.exit_code != 0
+
+    @patch("A_agento.agordo_crud.get_provider_config")
+    @patch("A_agento.agordo_crud.list_provider_configs", return_value=[])
+    @patch("A_agento.agordo_crud._delete_provider_config", return_value=True)
+    @patch("A_agento.agordo_crud.set_default_provider")
+    def test_forigi_with_yes(
+        self, mock_set_def, mock_del, mock_list, mock_get_cfg
+    ):
+        """Test deleting a provider with -y flag."""
+        mock_get_cfg.return_value = {
+            "provider": "openai",
+            "profile": "default",
+            "modelo": "gpt-4",
+            "base_url": "",
+            "noto": "",
+        }
+
+        result = runner.invoke(
+            app,
+            ["agordo", "forigi", "openai", "-y"],
+        )
+        assert result.exit_code == 0
+        mock_del.assert_called_once_with("openai")
+
+
+class TestDeprecatedAliases:
+    """Tests for deprecated slosilo/sxlosilo aliases."""
+
+    def test_slosilo_deprecated_works(self):
+        """Test slosilo still works (calls aldoni under the hood)."""
+        with patch("A_agento.agordo.save_api_key", return_value=True), \
+             patch("A_agento.agordo.save_provider_config"), \
+             patch("A_agento.agordo.list_provider_configs", return_value=[]), \
+             patch("A_agento.agordo.set_default_provider"):
+            result = runner.invoke(
+                app,
+                ["agordo", "slosilo", "openai", "--key", "test"],
+            )
+            assert result.exit_code == 0
+
+    def test_sxlosilo_deprecated_works(self):
+        """Test sxlosilo still works (calls aldoni under the hood)."""
+        with patch("A_agento.agordo.save_api_key", return_value=True), \
+             patch("A_agento.agordo.save_provider_config"), \
+             patch("A_agento.agordo.list_provider_configs", return_value=[]), \
+             patch("A_agento.agordo.set_default_provider"):
+            result = runner.invoke(
+                app,
+                ["agordo", "sxlosilo", "openai", "--key", "test"],
+            )
+            assert result.exit_code == 0
+
+
+class TestMontriCommand:
+    """Tests for `agordo ls` (formerly montri)."""
+
+    def test_ls_shows_help(self):
+        """Test ls subcommand shows help."""
         result = runner.invoke(app, ["agordo", "ls", "--help"])
         assert result.exit_code == 0
         assert "ls" in result.output.lower()
 
     @patch("A_agento.agordo.list_provider_configs")
     @patch("A_agento.agordo.get_default_provider")
-    def test_montri_no_configs(self, mock_default, mock_list):
-        """Test montri when no providers configured."""
+    def test_ls_no_configs(self, mock_default, mock_list):
+        """Test ls when no providers configured."""
         mock_default.return_value = "ollama"
         mock_list.return_value = []
 
-        result = runner.invoke(app, ["agordo", "montri"])
+        result = runner.invoke(app, ["agordo", "ls"])
         assert result.exit_code == 0
         assert "Neniuj" in result.output or "No" in result.output
 
     @patch("A_agento.agordo.list_provider_configs")
     @patch("A_agento.agordo.get_default_provider")
-    def test_montri_with_configs(self, mock_default, mock_list):
-        """Test montri with configured providers."""
+    def test_ls_with_configs(self, mock_default, mock_list):
+        """Test ls with configured providers."""
         mock_default.return_value = "openai"
         mock_list.return_value = [
             {
@@ -166,7 +303,7 @@ class TestMontriCommand:
             }
         ]
 
-        result = runner.invoke(app, ["agordo", "montri"])
+        result = runner.invoke(app, ["agordo", "ls"])
         assert result.exit_code == 0
 
 
@@ -221,7 +358,6 @@ class TestAgordoGroup:
     def test_agordo_shows_help_without_args(self):
         """Test agordo without args shows help."""
         result = runner.invoke(app, ["agordo"])
-        # Typer shows help and exits with 2 when no subcommand given
         assert result.exit_code != 0
 
     def test_agordo_help(self):
@@ -229,6 +365,9 @@ class TestAgordoGroup:
         result = runner.invoke(app, ["agordo", "--help"])
         assert result.exit_code == 0
         assert "default" in result.output
-        assert "slosilo" in result.output
+        assert "aldoni" in result.output
+        assert "vidi" in result.output
+        assert "modifi" in result.output
+        assert "forigi" in result.output
         assert "ls" in result.output
         assert "testi" in result.output
