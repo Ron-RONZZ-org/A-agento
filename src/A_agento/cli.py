@@ -17,6 +17,8 @@ app = typer.Typer(
         "A-agento — AI email agent with LLM",  # en
         "A-agento — Agent email IA avec LLM",  # fr
     ),
+    no_args_is_help=True,
+    context_settings={"help_option_names": ["-h", "--help", "--helpo"]},
 )
 app.add_typer(agordo_app)
 app.add_typer(stilo_app)
