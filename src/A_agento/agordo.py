@@ -235,21 +235,18 @@ def agordo_ls() -> None:
 
     table = Table(title=tr_multi('Provizantoj', 'Providers', 'Fournisseurs'))
     table.add_column(tr_multi('Provizanto', 'Provider', 'Fournisseur'), style="cyan")
+    table.add_column(tr_multi('Profilon', 'Profile', 'Profil'), style="dim")
     table.add_column(tr_multi("Sxlosilo", "Key", "Cle"), style="yellow")
     table.add_column(tr_multi('Modelo', 'Model', 'Modele'), style="green")
     table.add_column(tr_multi('Baza URL', 'Base URL', 'URL de base'), style="blue")
     table.add_column(tr_multi('Etikedo', 'Label', 'Etiquette'), style="magenta")
-    table.add_column(tr_multi('UUID', 'UUID', 'UUID'), style="dim")
 
     for cfg in configs:
         prov = cfg["provider"]
         prof = cfg.get("profile", "default")
         api_key = get_api_key(provider=prov, profile=prof)
         masked = ("..." + api_key[-4:]) if api_key else tr_multi("mankas", "missing", "manquant")
-        label = cfg.get("noto", "") or "-"
-        if prof != "default":
-            label = f"{label} [{prof}]"
-        table.add_row(prov, masked, cfg.get("modelo", "") or "-", cfg.get("base_url", "") or "-", label, cfg.get("uuid", "")[:8] or "-")
+        table.add_row(prov, prof, masked, cfg.get("modelo", "") or "-", cfg.get("base_url", "") or "-", cfg.get("noto", "") or "-")
 
     console.print(table)
 
