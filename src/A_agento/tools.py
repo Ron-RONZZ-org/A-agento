@@ -54,7 +54,30 @@ GET_ENTRY_TOOL = {
     },
 }
 
-ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL]
+WIKIDATA_PROPERTY_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "wikidata_property_id",
+        "description": "Search for a Wikidata property ID by English keyword. "
+                       "Use ENGLISH keywords only (the cache and Wikidata descriptions "
+                       "are primarily in English). "
+                       "Example: 'profession' returns wdt:P106, 'date of birth' returns wdt:P569. "
+                       "Returns ALL matching properties so you can choose the correct one.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "English keyword describing the property (e.g. 'profession', 'date of birth', 'country')",
+                }
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+# Combined tools for encik generation
+ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL, WIKIDATA_PROPERTY_TOOL]
 
 
 # ── Tool execution ───────────────────────────────────────────────────────────
@@ -80,6 +103,8 @@ def execute_tool_call(tool_call: ToolCall) -> str:
         return _search_encik(args.get("query", ""))
     elif name == "get_encik_entry":
         return _get_encik_entry(args.get("uuid", ""))
+    elif name == "wikidata_property_id":
+        return _lookup_wikidata_property(args.get("query", ""))
     else:
         return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -138,6 +163,34 @@ def _get_encik_entry(uuid: str) -> str:
         return json.dumps({"error": f"No entry found for UUID '{uuid}'"})
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+# ── Wikidata property lookup ─────────────────────────────────────────────────
+
+
+def _lookup_wikidata_property(query: str) -> str:
+    """Search for Wikidata properties by English keyword.
+
+    Always queries in English for consistency. Delegates to A-encik's
+    semantika_cache which handles: SQLite cache → CSV files → Wikidata API.
+
+    Args:
+        query: English keyword (e.g. "profession", "date of birth")
+
+    Returns:
+        JSON with results array or error message
+    """
+    if not query or not query.strip():
+        return json.dumps({"results": [], "message": "Empty query"})
+
+    try:
+        from A_encik.data.semantika_cache import lookup_property
+        result = lookup_property(query.strip())
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except ImportError:
+        return json.dumps({"error": "A-encik is not installed. Cannot query Wikidata properties."})
     except Exception as e:
         return json.dumps({"error": str(e)})
 

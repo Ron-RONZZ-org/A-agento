@@ -15,10 +15,11 @@ class TestToolDefinitions:
         """Test tool definitions have required structure."""
         from A_agento.tools import ENCIK_TOOLS
 
-        assert len(ENCIK_TOOLS) == 2
+        assert len(ENCIK_TOOLS) == 3
         names = [t["function"]["name"] for t in ENCIK_TOOLS]
         assert "search_encik" in names
         assert "get_encik_entry" in names
+        assert "wikidata_property_id" in names
 
         for t in ENCIK_TOOLS:
             assert "parameters" in t["function"]
