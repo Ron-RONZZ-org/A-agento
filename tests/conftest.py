@@ -7,6 +7,23 @@ from unittest.mock import Mock
 from pathlib import Path
 
 
+@pytest.fixture(autouse=True)
+def isolate_agento(monkeypatch, tmp_path):
+    """Isolate all tests from real config database and keyring.
+
+    Every test automatically writes to tmp_path and uses mock keyring.
+    """
+    # Isolate database to tmp_path
+    from A_agento.data.storage import close_db
+
+    close_db()  # reset singleton before patching
+    monkeypatch.setattr("A_agento.data.storage.data_dir", lambda: tmp_path)
+
+    # Mock keyring access (real keyring writes are permanent side-effects)
+    monkeypatch.setattr("A.core.ai.save_api_key", lambda key, **kw: True)
+    monkeypatch.setattr("A.core.ai.get_api_key", lambda **kw: "mock-key")
+
+
 @pytest.fixture
 def mock_provider():
     """A mock LLMProvider that returns canned responses."""
