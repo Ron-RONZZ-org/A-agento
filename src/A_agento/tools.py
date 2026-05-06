@@ -9,6 +9,7 @@ Tool definitions follow OpenAI's tool format for broad compatibility.
 from __future__ import annotations
 
 import json
+import threading
 from typing import Any
 
 from A import info
@@ -445,26 +446,44 @@ def is_raw_tool_output(content: str) -> bool:
 # ── Orchestration ────────────────────────────────────────────────────────────
 
 
-def _check_user_interject() -> str | None:
-    """Non-blocking check for user input buffered in stdin.
+_pause_requested = threading.Event()
+_pause_listener_started = False
 
-    The user can type a correction at any time during the API call.
-    It gets buffered and is read here between turns.
-    Returns None if nothing typed — no pause, no interruption.
 
-    Returns:
-        User's correction string, or None
-    """
-    import select
+def _key_listener():
+    """Background thread: reads single chars, sets pause flag on 'x'."""
     import sys
+    try:
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == 'x':
+                _pause_requested.set()
+    except (EOFError, OSError):
+        pass
 
-    if select.select([sys.stdin], [], [], 0)[0]:
-        try:
-            line = sys.stdin.readline().strip()
-            return line if line else None
-        except (ValueError, OSError):
-            pass
-    return None
+
+def _ensure_listener():
+    """Start the daemon listener thread once."""
+    global _pause_listener_started
+    if not _pause_listener_started:
+        _pause_listener_started = True
+        t = threading.Thread(target=_key_listener, daemon=True)
+        t.start()
+
+
+def _check_user_interject() -> str | None:
+    """Check if user pressed 'x' during the turn. If so, pause for input.
+
+    Returns user's correction, or None if no pause requested.
+    """
+    if not _pause_requested.is_set():
+        return None
+    _pause_requested.clear()
+
+    import sys
+    print("\n[PAUSED — press 'x' then Enter to resume, or type a correction and Enter]")
+    line = sys.stdin.readline().strip()
+    return line if line else None
 
 
 def generate_with_tools(
@@ -525,6 +544,8 @@ def generate_with_tools(
                     _v(f"     args: {tc.function.get('arguments', '{}')[:500]}")
 
         if interject:
+            if not _pause_listener_started:
+                _ensure_listener()
             correction = _check_user_interject()
             if correction:
                 messages.append({
