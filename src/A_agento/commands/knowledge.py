@@ -56,6 +56,7 @@ Topic: {prompto}
    terminologio.{{lang}} = "term"        # required, one per language
    difino.{{lang}} = "short def"         # single-line definition
    difino.{{lang}} = """               # multi-line definition
+   ## one-line summary of the entry on the first line after """
    - point 1
    - point 2
    """
@@ -71,6 +72,10 @@ Topic: {prompto}
    - Multi-section definitions: use ## for subsections
    - Keep formatting minimal, no extra explanation inside the .enc file
    - **Use years only for dates** — "1879" not "1879-03-14". Encik convention uses years for simplicity.
+   - **Every year mentioned must have a semantic arc**: link each year to its entry with [year](#UUID, wdt:P569) (birth), wdt:P570 (death), wdt:P69 (educated at), etc.
+     Example: birth `[1879](#a1b2c3d4, wdt:P569)` — the UUID is returned by calling search_encik("1879").
+   - **difino must start with a one-line summary** on the first line after the opening """, then ## sections.
+     Example: `## germandevena fizikisto` — a concise description of what the person/thing fundamentally is.
 
 3. STYLE
    - Use markdown bullet points for definitions

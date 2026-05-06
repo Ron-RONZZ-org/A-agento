@@ -208,16 +208,55 @@ def _lookup_wikidata_property(query: str) -> str:
 # ── Year entry management ────────────────────────────────────────────────────
 
 
-# Fixed UUIDs for year entry template (from user's encik DB)
+# Fixed UUIDs for calendar time entries (from user's encik DB)
 _YEAR_JARO_UUID = "592e5797"
+_YEAR_JARDEKO_UUID = "82064f60"
+_YEAR_JARCENTO_UUID = "8677ddbd"
 _YEAR_GREGORIA_UUID = "caaf64dc"
 
 
-def _ensure_year_entry(year: str) -> str:
-    """Create or retrieve an encik entry for a calendar year.
+def _ensure_or_create(
+    titolo: str,
+    terminologio_eo: str,
+    difino_eo: str,
+    superklaso: list[str] | None = None,
+) -> str:
+    """Find an entry by title or create it. Returns UUID.
 
-    If the year entry already exists (by title search), returns its UUID.
-    If not, creates a new year entry with the standard template.
+    Args:
+        titolo: Entry title
+        terminologio_eo: Esperanto term
+        difino_eo: Definition in Esperanto
+        superklaso: Optional parent UUIDs
+
+    Returns:
+        UUID string
+    """
+    from A_encik.service import get_service
+    svc = get_service()
+
+    existing = svc.find_by_titolo(titolo)
+    if existing:
+        return existing["uuid"]
+
+    data = {
+        "titolo": titolo,
+        "terminologio": {"eo": terminologio_eo},
+        "difinoj": {"eo": difino_eo},
+    }
+    if superklaso:
+        data["superklaso"] = superklaso
+
+    entry = svc.create(data)
+    return entry["uuid"]
+
+
+def _ensure_year_entry(year: str) -> str:
+    """Create or retrieve calendar time entries for a year.
+
+    Cascading creation: century → decade → year.
+    Each level sets the previous as superklaso (parent).
+    If entries already exist, returns the existing UUID.
 
     Args:
         year: Four-digit year string (e.g. "1879")
@@ -225,44 +264,38 @@ def _ensure_year_entry(year: str) -> str:
     Returns:
         JSON with uuid of the year entry
     """
-    import uuid as uuid_mod
-    from datetime import datetime, timezone
-
     year = year.strip()
     if not year.isdigit() or len(year) != 4:
         return json.dumps({"error": f"Invalid year: '{year}'. Must be 4 digits."})
 
     try:
-        from A_encik.data.storage import get_db as encik_db
-        from A_encik.service import get_service
+        y = int(year)
+        century_num = (y - 1) // 100 + 1  # 1879 → 19th century
+        decade_start = (y // 10) * 10      # 1879 → 1870s
 
-        db = encik_db()
+        # 1. Century: e.g. "19a jarcento (kalendara jarcento)"
+        century_id = f"{century_num}a jarcento"
+        century_title = f"{century_num}a jarcento (kalendara jarcento)"
+        century_term = f"{century_num}a jarcento (kalendara jarcento)"
+        century_difino = f"[jarcento](#{_YEAR_JARCENTO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
+        century_uuid = _ensure_or_create(century_title, century_term, century_difino)
 
-        # Check if year entry exists (by title pattern)
-        existing = db.execute_one(
-            "SELECT uuid FROM encik WHERE titolo LIKE ? OR titolo LIKE ? LIMIT 1",
-            (f"{year}%", f"%{year} (kalendara jaro)%"),
-        )
-        if existing:
-            return json.dumps({"uuid": existing["uuid"]}, ensure_ascii=False)
+        # 2. Decade: e.g. "1870a jardeko (kalendara jardeko)"
+        decade_label = f"{decade_start}a jardeko"
+        decade_title = f"{decade_label} (kalendara jardeko)"
+        decade_term = f"{decade_label} (kalendara jardeko)"
+        decade_difino = f"[jardeko](#{_YEAR_JARDEKO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
+        decade_uuid = _ensure_or_create(decade_title, decade_term, decade_difino,
+                                        superklaso=[century_uuid])
 
-        # Create new year entry
-        svc = get_service()
-        now = datetime.now(timezone.utc).isoformat()
+        # 3. Year: e.g. "1879 (kalendara jaro)"
+        year_title = f"{year} (kalendara jaro)"
+        year_term = f"{year} (kalendara jaro)"
+        year_difino = f"[jaro](#{_YEAR_JARO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
+        year_uuid = _ensure_or_create(year_title, year_term, year_difino,
+                                      superklaso=[decade_uuid])
 
-        entry = svc.create({
-            "titolo": f"{year} (kalendara jaro)",
-            "terminologio": {
-                "eo": f"{year} (kalendara jaro)",
-                "fr": f"{year} (année calendrier)",
-                "en": f"{year} (calendar year)",
-            },
-            "difinoj": {
-                "eo": f"[jaro](#{_YEAR_JARO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)",
-            },
-        })
-
-        return json.dumps({"uuid": entry["uuid"]}, ensure_ascii=False, default=str)
+        return json.dumps({"uuid": year_uuid}, ensure_ascii=False, default=str)
 
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
