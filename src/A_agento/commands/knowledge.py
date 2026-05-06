@@ -56,7 +56,7 @@ Topic: {prompto}
    difino.{{lang}} = "short def"         # single-line definition
    difino.{{lang}} = """               # multi-line definition
 
-   ## one-line summary of the entry on the first line after """
+   ## one-line summary of the entry at the start of the definition
 
    - point 1
    - point 2
@@ -73,7 +73,7 @@ Topic: {prompto}
    - **For time, refer to year, not date** — "1879" not "1879-03-14". Encik convention uses years for simplicity
     - **Every year mentioned must have a semantic arc**: link each year to its entry with [year](#UUID, wdt:P569) (birth), wdt:P570 (death), wdt:P69 (educated at), etc.
       Example: birth `[1879](#a1b2c3d4, wdt:P569)` — call search_encik("1879") to get the UUID.
-   - **difino must start with `## {one-line summary}`** wrapped between empty lines after the opening """, then ## sections
+   - **difino must start with `## one-line summary`** wrapped between empty lines after the opening """, then ## sections
      Example: `\n## germandevena [fizikisto](#d8dd7fa3, wdt:P106)\n` — a concise summary of what the person is most known for/what the concept is fundamentally
 
 3. STYLE for `difino.{{lang}}`
@@ -84,15 +84,15 @@ Topic: {prompto}
      - if too long, split into a multi-level list with sub-points
 
 3. **WORKFLOW for linking entries** (use the available MCP tools):
-    - `search_encik("term")` — find an entry by title. Returns a JSON array of `[{"uuid": "...", "titolo": "...", "preview": "..."}]`.
+    - `search_encik("term")` — find an entry by title. Returns a JSON array of entries with uuid and titolo.
       - If one match → use `uuid` directly.
       - If multiple matches → pick the most relevant one by titolo.
       - If no matches AND term is a year (e.g. "1879", "44 BCE") → entry auto-created, uuid returned.
       - If no matches for non-year → skip the link (user adds it later).
       - Search term rules:
-        - be an elementary concept: search for `fizikisto`, not `germana fizikisto`, since the latter contains two concepts (germana + fizikisto)
+        - be an elementary concept: search for `fizikisto`, not `germana fizikisto` (two concepts: germana + fizikisto)
         - be a noun: when you need `franca` (French), search for `Francio` (France)
-    - `wikidata_property_id("keyword")` — returns a JSON array of `[{"id": "P106", "label": "occupation", "description": "..."}]`.
+    - `wikidata_property_id("keyword")` — returns a JSON array of matching properties with id and label.
       - Pick the most relevant property for the relationship you need.
     - Every `[text](#UUID, wdt:PROP)` link needs TWO lookups: `search_encik("text")` for UUID + `wikidata_property_id("keyword")` for PROP.
     - Example: to write `[fizikisto](#UUID, wdt:P106)`, call search_encik("fizikisto") + wikidata_property_id("profession").
