@@ -74,20 +74,18 @@ def _construct_provider(provider_name: str, api_key: str, model: str | None = No
     Provider names are compared case-insensitively to handle stored names
     like "Deepseek" or "DEEPSEEK" matching to the correct provider class.
     """
-    from A.core.ai import OpenAIProvider, DeepSeekProvider, HuggingFaceProvider, OllamaProvider
+    from A.core.providers import OpenAICompatibleProvider, OllamaProvider
 
     normalized = provider_name.lower()
-    if normalized == "openai":
-        return OpenAIProvider(api_key=api_key, model=model or None, base_url=base_url or None)
-    elif normalized == "deepseek":
-        return DeepSeekProvider(api_key=api_key, model=model or None)
-    elif normalized == "huggingface":
-        return HuggingFaceProvider(api_token=api_key, model=model or None)
-    elif normalized == "ollama":
+    if normalized == "ollama":
         return OllamaProvider(model=model or None, base_url=base_url or None)
     else:
-        # Custom provider names — treat as OpenAI-compatible endpoint
-        return OpenAIProvider(api_key=api_key, model=model or None, base_url=base_url or None)
+        return OpenAICompatibleProvider(
+            provider_type=normalized,
+            api_key=api_key,
+            model=model or None,
+            base_url=base_url or None,
+        )
 
 
 def confirm_action(description: str) -> bool:

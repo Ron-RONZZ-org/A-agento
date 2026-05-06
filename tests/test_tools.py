@@ -33,7 +33,7 @@ class TestExecuteToolCall:
     def test_unknown_tool(self):
         """Test unknown tool returns error."""
         from A_agento.tools import execute_tool_call
-        from A.core.ai import ToolCall
+        from A.core.providers import ToolCall
 
         tc = ToolCall(id="1", function={"name": "unknown", "arguments": "{}"})
         result = execute_tool_call(tc)
@@ -43,7 +43,7 @@ class TestExecuteToolCall:
     def test_invalid_arguments(self):
         """Test invalid arguments returns error."""
         from A_agento.tools import execute_tool_call
-        from A.core.ai import ToolCall
+        from A.core.providers import ToolCall
 
         tc = ToolCall(id="1", function={"name": "search_encik", "arguments": "not json"})
         result = execute_tool_call(tc)
@@ -53,7 +53,7 @@ class TestExecuteToolCall:
     def test_search_encik_no_encik(self):
         """Test search returns error when A-encik not installed."""
         from A_agento.tools import execute_tool_call
-        from A.core.ai import ToolCall
+        from A.core.providers import ToolCall
 
         tc = ToolCall(id="1", function={"name": "search_encik", "arguments": '{"query": "test"}'})
         result = execute_tool_call(tc)

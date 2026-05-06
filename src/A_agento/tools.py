@@ -12,7 +12,7 @@ import json
 from typing import Any
 
 from A import info
-from A.core.ai import LLMProvider, LLMResponse, ToolCall
+from A.core.providers import LLMProvider, LLMResponse, ToolCall
 
 
 # ── Tool definitions ─────────────────────────────────────────────────────────
