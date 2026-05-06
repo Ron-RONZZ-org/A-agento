@@ -255,9 +255,9 @@ def generi(
         "--interject",
         "-i",
         help=tr_multi(
-            "Paŭzi inter paŝoj por enigi korektojn. Uzu kun --detala.",  # eo
-            "Pause between steps to type corrections. Use with --detala.",  # en
-            "Pause entre les étapes pour saisir des corrections. À utiliser avec --detala.",  # fr
+            "Tajpu korekton iam ajn, enmetita inter AI-paŝoj. Uzu kun --detala.",  # eo
+            "Type a correction anytime — picked up between AI turns. Use with --detala.",  # en
+            "Correction possible à tout moment — prise entre les tours IA. À utiliser avec --detala.",  # fr
         ),
     ),
 ) -> None:
