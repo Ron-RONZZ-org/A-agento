@@ -445,12 +445,47 @@ def is_raw_tool_output(content: str) -> bool:
 # ── Orchestration ────────────────────────────────────────────────────────────
 
 
+def _check_user_interject() -> str | None:
+    """Check if the user typed input during a pause (non-blocking).
+
+    Uses select.select() on stdin with zero timeout.
+    Returns the user's input line, or None if nothing typed.
+
+    Returns:
+        User input string, or None
+    """
+    import select
+    import sys
+
+    if select.select([sys.stdin], [], [], 0)[0]:
+        line = sys.stdin.readline().strip()
+        return line if line else None
+    return None
+
+
+def _wait_for_interject() -> str | None:
+    """Wait for user input between LLM turns.
+
+    Prompts the user and reads a line from stdin.
+    Returns the line content, or None if empty (just pressed Enter).
+
+    Returns:
+        User input or None
+    """
+    import sys
+    sys.stdout.write("[interject] Press Enter to continue, or type a correction: ")
+    sys.stdout.flush()
+    line = sys.stdin.readline().strip()
+    return line if line else None
+
+
 def generate_with_tools(
     provider: LLMProvider,
     messages: list[dict],
     tools: list[dict] | None = None,
     max_turns: int = 30,
     verbose: bool = False,
+    interject: bool = False,
 ) -> str:
     """Multi-turn generation with tool calling support.
 
@@ -500,6 +535,17 @@ def generate_with_tools(
                 for tc in response.tool_calls:
                     _v(f"\n  TOOL CALL: {tc.function.get('name', '?')}")
                     _v(f"     args: {tc.function.get('arguments', '{}')[:500]}")
+
+        if interject and turn < max_turns - 1:
+            correction = _wait_for_interject()
+            if correction:
+                messages.append({
+                    "role": "user",
+                    "content": f"[User correction]: {correction}"
+                })
+                if verbose:
+                    _v(f"\n  [USER CORRECTION]: {correction}")
+                continue
 
         if not response.tool_calls:
             # Check for raw tool output echoed by the model

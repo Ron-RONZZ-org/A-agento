@@ -241,11 +241,23 @@ def generi(
     verbose: bool = typer.Option(
         False,
         "--verbose",
+        "--detala",
         "-v",
         help=tr_multi(
             "Montri la plenan konversacion kun LLM (inkluzive de pensado)",  # eo
             "Show full LLM conversation (including reasoning/thinking)",  # en
             "Afficher la conversation complète avec LLM (y compris le raisonnement)",  # fr
+        ),
+    ),
+    interjekti: bool = typer.Option(
+        False,
+        "--interjekti",
+        "--interject",
+        "-i",
+        help=tr_multi(
+            "Paŭzi inter paŝoj por enigi korektojn. Uzu kun --detala.",  # eo
+            "Pause between steps to type corrections. Use with --detala.",  # en
+            "Pause entre les étapes pour saisir des corrections. À utiliser avec --detala.",  # fr
         ),
     ),
 ) -> None:
@@ -296,7 +308,7 @@ def generi(
         if formato == "enc":
             prompt = prompt_text.format(title_line=title_line, prompto=prompto)
             messages = [{"role": "user", "content": prompt}]
-            content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose)
+            content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose, interject=interjekti)
             content = _clean_enc_output(content)
         else:
             prompt = prompt_text.format(title_line=title_line, prompto=prompto)
