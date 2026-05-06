@@ -135,10 +135,11 @@ def _search_encik(query: str) -> str:
         if results:
             return json.dumps(results, ensure_ascii=False, default=str)
 
-        # No results: if query is a 4-digit year, auto-create the entry
+        # No results: if query is a year (CE or BCE), auto-create the entry
         clean = query.strip()
-        if clean.isdigit() and len(clean) == 4:
-            return _ensure_year_entry(clean)
+        year = _parse_year(clean)
+        if year is not None:
+            return _ensure_year_entry(str(year), bce=clean.lower().endswith("bce") or clean.lower().endswith("bc") or "a.k.e" in clean.lower() or "a.k." in clean.lower())
 
         return json.dumps({"message": f"No entries found for '{query}'"})
     except ImportError:
@@ -251,7 +252,34 @@ def _ensure_or_create(
     return entry["uuid"]
 
 
-def _ensure_year_entry(year: str) -> str:
+def _parse_year(text: str) -> int | None:
+    """Parse a year string (CE or BCE) into a positive integer.
+
+    Accepts:
+    - "1879" → 1879 (CE)
+    - "44 BCE", "44 BC", "44 bce", "44 bc" → 44
+    - "44 a.K.E.", "44 a.k.e." → 44
+    - "3000 BCE" → 3000
+    - "1000" → 1000
+
+    Returns the numeric year (always positive), or None if not a valid year.
+    """
+    t = text.strip()
+    # BCE suffixes
+    bce_suffixes = ("bce", "bc", "a.k.e.", "a.k.", "a.K.E.", "a.K.")
+    is_bce = any(t.lower().endswith(s.lower()) for s in bce_suffixes)
+    if is_bce:
+        for s in bce_suffixes:
+            if t.lower().endswith(s.lower()):
+                t = t[:-len(s)].strip()
+                break
+    # Now t should be just digits
+    if t.isdigit() and 1 <= len(t) <= 4:
+        return int(t)
+    return None
+
+
+def _ensure_year_entry(year: str, bce: bool = False) -> str:
     """Create or retrieve calendar time entries for a year.
 
     Cascading creation: century → decade → year.
@@ -264,33 +292,40 @@ def _ensure_year_entry(year: str) -> str:
     Returns:
         JSON with uuid of the year entry
     """
-    year = year.strip()
-    if not year.isdigit() or len(year) != 4:
-        return json.dumps({"error": f"Invalid year: '{year}'. Must be 4 digits."})
+    year_str = year.strip()
+    if not year_str.isdigit() or not (1 <= len(year_str) <= 4):
+        return json.dumps({"error": f"Invalid year: '{year_str}'. Must be 1-4 digits."})
 
     try:
-        y = int(year)
-        century_num = (y - 1) // 100 + 1  # 1879 → 19th century
-        decade_start = (y // 10) * 10      # 1879 → 1870s
+        y = int(year_str)
+        era_suffix = " a.K.E." if bce else ""
+        era_suffix_long = " (a.K.E.)" if bce else ""
 
-        # 1. Century: e.g. "19a jarcento (kalendara jarcento)"
-        century_id = f"{century_num}a jarcento"
-        century_title = f"{century_num}a jarcento (kalendara jarcento)"
-        century_term = f"{century_num}a jarcento (kalendara jarcento)"
+        # For BCE centuries/decades, the math is:
+        # 44 BCE → century (44-1)//100+1 = 1 → "1a jarcento a.K.E."
+        # 3000 BCE → century (3000-1)//100+1 = 30 → "30a jarcento a.K.E."
+        # Same formula works for both CE and BCE
+        century_num = (y - 1) // 100 + 1
+        decade_start = (y // 10) * 10
+
+        # 1. Century
+        century_title = f"{century_num}a jarcento{era_suffix_long} (kalendara jarcento)"
+        century_term = f"{century_num}a jarcento{era_suffix_long} (kalendara jarcento)"
         century_difino = f"[jarcento](#{_YEAR_JARCENTO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
         century_uuid = _ensure_or_create(century_title, century_term, century_difino)
 
-        # 2. Decade: e.g. "1870a jardeko (kalendara jardeko)"
-        decade_label = f"{decade_start}a jardeko"
+        # 2. Decade
+        decade_label = f"{decade_start}a jardeko{era_suffix_long}"
         decade_title = f"{decade_label} (kalendara jardeko)"
         decade_term = f"{decade_label} (kalendara jardeko)"
         decade_difino = f"[jardeko](#{_YEAR_JARDEKO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
         decade_uuid = _ensure_or_create(decade_title, decade_term, decade_difino,
                                         superklaso=[century_uuid])
 
-        # 3. Year: e.g. "1879 (kalendara jaro)"
-        year_title = f"{year} (kalendara jaro)"
-        year_term = f"{year} (kalendara jaro)"
+        # 3. Year
+        year_label = f"{year_str}{era_suffix}"
+        year_title = f"{year_label} (kalendara jaro)"
+        year_term = f"{year_label} (kalendara jaro)"
         year_difino = f"[jaro](#{_YEAR_JARO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
         year_uuid = _ensure_or_create(year_title, year_term, year_difino,
                                       superklaso=[decade_uuid])
