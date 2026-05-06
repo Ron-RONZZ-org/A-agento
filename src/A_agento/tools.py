@@ -9,7 +9,6 @@ Tool definitions follow OpenAI's tool format for broad compatibility.
 from __future__ import annotations
 
 import json
-import threading
 from typing import Any
 
 from A import info
@@ -446,42 +445,22 @@ def is_raw_tool_output(content: str) -> bool:
 # ── Orchestration ────────────────────────────────────────────────────────────
 
 
-_pause_requested = threading.Event()
-_pause_listener_started = False
+def _check_user_interject(verbose: bool = False) -> str | None:
+    """Pause between turns and let the user type a correction.
 
+    Shows a clear prompt. User can press Enter to continue, or type
+    a correction that gets injected into the conversation.
 
-def _key_listener():
-    """Background thread: reads single chars, sets pause flag on 'x'."""
-    import sys
-    try:
-        while True:
-            ch = sys.stdin.read(1)
-            if ch == 'x':
-                _pause_requested.set()
-    except (EOFError, OSError):
-        pass
-
-
-def _ensure_listener():
-    """Start the daemon listener thread once."""
-    global _pause_listener_started
-    if not _pause_listener_started:
-        _pause_listener_started = True
-        t = threading.Thread(target=_key_listener, daemon=True)
-        t.start()
-
-
-def _check_user_interject() -> str | None:
-    """Check if user pressed 'x' during the turn. If so, pause for input.
-
-    Returns user's correction, or None if no pause requested.
+    Returns:
+        User's correction string, or None if just continuing
     """
-    if not _pause_requested.is_set():
-        return None
-    _pause_requested.clear()
-
     import sys
-    print("\n[PAUSED — press 'x' then Enter to resume, or type a correction and Enter]")
+    if verbose:
+        prompt = "\n[ interjekti: Enter=continue, or type correction and Enter ]\n> "
+    else:
+        prompt = "\n> "
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
     line = sys.stdin.readline().strip()
     return line if line else None
 
@@ -544,9 +523,7 @@ def generate_with_tools(
                     _v(f"     args: {tc.function.get('arguments', '{}')[:500]}")
 
         if interject:
-            if not _pause_listener_started:
-                _ensure_listener()
-            correction = _check_user_interject()
+            correction = _check_user_interject(verbose=verbose)
             if correction:
                 messages.append({
                     "role": "user",
