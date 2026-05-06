@@ -449,7 +449,7 @@ def generate_with_tools(
             rc = msg.get("reasoning_content", "")
             _v(f"\n── [{role}] ──")
             if content:
-                _v(content[:2000])
+                _v(content[:8000])
             if rc:
                 _v(f"\n[Reasoning]: {rc[:1000]}")
 
@@ -464,9 +464,9 @@ def generate_with_tools(
             from A.utils import info as _v
             _v(f"\n── [ASSISTANT (turn {turn+1})] ──")
             if response.content:
-                _v(response.content[:2000])
+                _v(response.content[:8000])
             if response.reasoning_content:
-                _v(f"\n[Reasoning]: {response.reasoning_content[:1000]}")
+                _v(f"\n[Reasoning]: {response.reasoning_content[:4000]}")
 
         if not response.tool_calls:
             # Check for raw tool output echoed by the model
