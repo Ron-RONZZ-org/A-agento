@@ -103,18 +103,47 @@ Generate only the .enc content, no extra explanation:''',
 }
 
 
+def _looks_like_raw_json(content: str) -> bool:
+    """Detect if content is raw JSON output from search_encik (not generated .enc)."""
+    stripped = content.strip()
+    if not stripped:
+        return True  # Empty content is also a failure
+    if stripped.startswith("[") and stripped.endswith("]"):
+        try:
+            data = json.loads(stripped)
+            return isinstance(data, list)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    if stripped.startswith("{") and stripped.endswith("}"):
+        try:
+            data = json.loads(stripped)
+            if isinstance(data, dict) and "uuid" in data:
+                return True  # Year creation result
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return False
+
+
 def _clean_enc_output(content: str) -> str:
     """Clean up LLM-generated .enc content by stripping markdown artifacts.
 
     - Removes leading/trailing code fences (```enc, ```, ```toml, etc.)
+    - Strips leading # title comments (tolerated by parser but not desired style)
 
     Args:
         content: Raw LLM output
 
     Returns:
         Cleaned .enc content
+
+    Raises:
+        ValueError: If content is raw JSON tool output, not generated content
     """
     import re
+
+    # Safety net: reject raw JSON tool output
+    if _looks_like_raw_json(content):
+        raise ValueError("LLM returned raw tool output instead of generated content")
 
     # Strip leading and trailing code fences
     content = re.sub(r'^```\w*\s*\n', '', content)
@@ -250,6 +279,9 @@ def generi(
         raise typer.Exit(1)
 
     provider = get_provider_or_exit(provizanto)
+    # Increase token limit for .enc generation (full entries with tool calls)
+    if formato == "enc":
+        provider._max_tokens = 4096
     title_line = f"Title: {titolo}" if titolo else ""
 
     info(tr_multi(

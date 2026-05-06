@@ -109,12 +109,42 @@ def execute_tool_call(tool_call: ToolCall) -> str:
         return json.dumps({"error": f"Unknown tool: {name}"})
 
 
+def _search_fts(db, query: str, fts_cfg) -> list[dict] | None:
+    """Search encik DB using FTS5 for relevance-ranked results.
+
+    Args:
+        db: SQLiteDB instance
+        query: Search query string
+        fts_cfg: FTSConfig from A_encik
+
+    Returns:
+        List of matching entries or None if FTS fails
+    """
+    try:
+        # Convert query to FTS5 MATCH format: escape special chars, add prefix
+        import re as _re
+        terms = _re.findall(r"[a-zA-Z0-9]+", query)
+        if not terms:
+            return None
+        fts_query = " OR ".join(f"{t}*" for t in terms[:5])
+
+        sql = f"""SELECT e.uuid, e.titolo, substr(e.difinio, 1, 200) as preview
+                  FROM encik e
+                  JOIN {fts_cfg.fts_table} f ON e.rowid = f.rowid
+                  WHERE {fts_cfg.fts_table} MATCH ?
+                  ORDER BY rank
+                  LIMIT 8"""
+        return db.execute(sql, (fts_query,))
+    except Exception:
+        return None
+
+
 def _search_encik(query: str) -> str:
     """Search encik DB by keyword/title.
 
-    If the query is a 4-digit year and no results are found, automatically
-    creates a year entry and returns its UUID. This eliminates the need for
-    the LLM to call a separate tool for year entries.
+    Uses FTS5 for relevance-ranked results when available, falls back to
+    LIKE search. If the query is a 4-digit year and no results are found,
+    automatically creates a year entry and returns its UUID.
 
     Args:
         query: Search query string
@@ -124,14 +154,20 @@ def _search_encik(query: str) -> str:
     """
     try:
         from A_encik.data.storage import get_db as encik_db
+        from A_encik.data.storage import ENCIK_FTS_CONFIG as fts_cfg
         db = encik_db()
-        results = db.execute(
-            """SELECT uuid, titolo, substr(difinio, 1, 200) as preview
-               FROM encik WHERE titolo LIKE ?
-               ORDER BY CASE WHEN titolo LIKE ? THEN 0 ELSE 1 END, titolo
-               LIMIT 8""",
-            (f"%{query}%", f"{query}%"),
-        )
+
+        # Try FTS5 first for relevance-ranked results
+        results = _search_fts(db, query, fts_cfg)
+        if not results:
+            # Fallback: LIKE search
+            results = db.execute(
+                """SELECT uuid, titolo, substr(difinio, 1, 200) as preview
+                   FROM encik WHERE titolo LIKE ? OR difinio LIKE ?
+                   ORDER BY CASE WHEN titolo LIKE ? THEN 0 ELSE 1 END, titolo
+                   LIMIT 8""",
+                (f"%{query}%", f"%{query}%", f"{query}%"),
+            )
         if results:
             return json.dumps(results, ensure_ascii=False, default=str)
 
@@ -338,6 +374,45 @@ def _ensure_year_entry(year: str, bce: bool = False) -> str:
         return json.dumps({"error": str(e)})
 
 
+# ── Output validation ────────────────────────────────────────────────────────
+
+
+def _looks_like_raw_tool_output(content: str) -> bool:
+    """Detect if LLM output is raw JSON echoed from search_encik tool.
+
+    Checks for JSON array format with uuid/titolo keys, which indicates
+    the model failed to generate proper content and just echoed the tool result.
+
+    Args:
+        content: LLM response content
+
+    Returns:
+        True if content looks like raw tool output
+    """
+    stripped = content.strip()
+    if not stripped:
+        return False
+    # Check for JSON array starting with [ and containing uuid/titolo
+    if stripped.startswith("[") and stripped.endswith("]"):
+        try:
+            data = json.loads(stripped)
+            if isinstance(data, list) and data:
+                first = data[0]
+                if isinstance(first, dict) and "uuid" in first and "titolo" in first:
+                    return True
+        except (json.JSONDecodeError, TypeError, IndexError):
+            pass
+    # Check for single JSON object with uuid (e.g. year auto-creation result)
+    if stripped.startswith("{") and stripped.endswith("}"):
+        try:
+            data = json.loads(stripped)
+            if isinstance(data, dict) and "uuid" in data and "titolo" not in data:
+                return True  # Year creation result like {"uuid": "..."}
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return False
+
+
 # ── Orchestration ────────────────────────────────────────────────────────────
 
 
@@ -394,7 +469,16 @@ def generate_with_tools(
                 _v(f"\n[Reasoning]: {response.reasoning_content[:1000]}")
 
         if not response.tool_calls:
-            return response.content  # Final response — no more tool calls
+            # Check for raw tool output echoed by the model
+            if _looks_like_raw_tool_output(response.content):
+                if verbose:
+                    _v("\n[WARNING] Raw tool output detected, retrying...")
+                messages.append({
+                    "role": "user",
+                    "content": "That was tool result data. Now generate the actual content in the requested format, no extra explanation, no code fences."
+                })
+                continue
+            return response.content  # Valid final response — no more tool calls
 
         # Add assistant message with tool calls
         # Preserve reasoning_content (DeepSeek thinking mode requires echo)

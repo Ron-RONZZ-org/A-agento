@@ -50,15 +50,15 @@ class TestExecuteToolCall:
         data = json.loads(result)
         assert "error" in data
 
-    def test_search_encik_no_encik(self):
-        """Test search returns error when A-encik not installed."""
+    def test_search_encik_returns_list(self):
+        """Test search returns a list of results."""
         from A_agento.tools import execute_tool_call
         from A.core.providers import ToolCall
 
         tc = ToolCall(id="1", function={"name": "search_encik", "arguments": '{"query": "test"}'})
         result = execute_tool_call(tc)
         data = json.loads(result)
-        assert "error" in data or "message" in data
+        assert isinstance(data, list)
 
 
 class TestGenerateWithTools:
