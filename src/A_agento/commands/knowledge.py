@@ -57,6 +57,7 @@ Topic: {prompto}
    - KaTeX formulas: $\\vec{{E}}=0$
    - Multi-section definitions: use ## for subsections
    - Keep formatting minimal, no extra explanation inside the .enc file
+   - **Use years only for dates** — "1879" not "1879-03-14". Encik convention uses years for simplicity.
 
 3. STYLE
    - Use markdown bullet points for definitions

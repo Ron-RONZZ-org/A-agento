@@ -77,7 +77,28 @@ WIKIDATA_PROPERTY_TOOL = {
 }
 
 # Combined tools for encik generation
-ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL, WIKIDATA_PROPERTY_TOOL]
+ENSURE_YEAR_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "ensure_year_entry",
+        "description": "Create or retrieve an encik entry for a calendar year (e.g. 1879). "
+                       "If the year entry already exists, returns its UUID. "
+                       "If not, creates a new year entry with standard template and returns its UUID. "
+                       "Use this when you need to reference a year in a semantic arc like [1879](#uuid, wdt:P569).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "year": {
+                    "type": "string",
+                    "description": "Four-digit year (e.g. '1879', '2024')",
+                }
+            },
+            "required": ["year"],
+        },
+    },
+}
+
+ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL, WIKIDATA_PROPERTY_TOOL, ENSURE_YEAR_TOOL]
 
 
 # ── Tool execution ───────────────────────────────────────────────────────────
@@ -105,6 +126,8 @@ def execute_tool_call(tool_call: ToolCall) -> str:
         return _get_encik_entry(args.get("uuid", ""))
     elif name == "wikidata_property_id":
         return _lookup_wikidata_property(args.get("query", ""))
+    elif name == "ensure_year_entry":
+        return _ensure_year_entry(args.get("year", ""))
     else:
         return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -191,6 +214,71 @@ def _lookup_wikidata_property(query: str) -> str:
         return json.dumps(result, ensure_ascii=False, default=str)
     except ImportError:
         return json.dumps({"error": "A-encik is not installed. Cannot query Wikidata properties."})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+# ── Year entry management ────────────────────────────────────────────────────
+
+
+# Fixed UUIDs for year entry template (from user's encik DB)
+_YEAR_JARO_UUID = "592e5797"
+_YEAR_GREGORIA_UUID = "caaf64dc"
+
+
+def _ensure_year_entry(year: str) -> str:
+    """Create or retrieve an encik entry for a calendar year.
+
+    If the year entry already exists (by title search), returns its UUID.
+    If not, creates a new year entry with the standard template.
+
+    Args:
+        year: Four-digit year string (e.g. "1879")
+
+    Returns:
+        JSON with uuid of the year entry
+    """
+    import uuid as uuid_mod
+    from datetime import datetime, timezone
+
+    year = year.strip()
+    if not year.isdigit() or len(year) != 4:
+        return json.dumps({"error": f"Invalid year: '{year}'. Must be 4 digits."})
+
+    try:
+        from A_encik.data.storage import get_db as encik_db
+        from A_encik.service import get_service
+
+        db = encik_db()
+
+        # Check if year entry exists (by title pattern)
+        existing = db.execute_one(
+            "SELECT uuid FROM encik WHERE titolo LIKE ? OR titolo LIKE ? LIMIT 1",
+            (f"{year}%", f"%{year} (kalendara jaro)%"),
+        )
+        if existing:
+            return json.dumps({"uuid": existing["uuid"]}, ensure_ascii=False)
+
+        # Create new year entry
+        svc = get_service()
+        now = datetime.now(timezone.utc).isoformat()
+
+        entry = svc.create({
+            "titolo": f"{year} (kalendara jaro)",
+            "terminologio": {
+                "eo": f"{year} (kalendara jaro)",
+                "fr": f"{year} (année calendrier)",
+                "en": f"{year} (calendar year)",
+            },
+            "difinoj": {
+                "eo": f"[jaro](#{_YEAR_JARO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)",
+            },
+        })
+
+        return json.dumps({"uuid": entry["uuid"]}, ensure_ascii=False, default=str)
+
+    except ImportError:
+        return json.dumps({"error": "A-encik is not installed"})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
