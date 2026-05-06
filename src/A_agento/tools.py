@@ -9,6 +9,7 @@ Tool definitions follow OpenAI's tool format for broad compatibility.
 from __future__ import annotations
 
 import json
+import threading
 from typing import Any
 
 from A import info
@@ -445,21 +446,41 @@ def is_raw_tool_output(content: str) -> bool:
 # ── Orchestration ────────────────────────────────────────────────────────────
 
 
-def _check_user_interject(verbose: bool = False) -> str | None:
-    """Pause between turns and let the user type a correction.
+_pause_requested = threading.Event()
+_pause_listener = None
 
-    Shows a clear prompt. User can press Enter to continue, or type
-    a correction that gets injected into the conversation.
 
-    Returns:
-        User's correction string, or None if just continuing
-    """
+def _key_listener():
+    """Daemon thread: reads single chars from stdin, sets flag on 'x'."""
     import sys
-    if verbose:
-        prompt = "\n[ interjekti: Enter=continue, or type correction and Enter ]\n> "
-    else:
-        prompt = "\n> "
-    sys.stdout.write(prompt)
+    try:
+        while True:
+            ch = sys.stdin.read(1)
+            if ch == 'x':
+                _pause_requested.set()
+    except (EOFError, OSError):
+        pass
+
+
+def _ensure_listener():
+    """Start the daemon listener once."""
+    global _pause_listener
+    if _pause_listener is None or not _pause_listener.is_alive():
+        _pause_listener = threading.Thread(target=_key_listener, daemon=True)
+        _pause_listener.start()
+
+
+def _check_user_interject() -> str | None:
+    """Check if 'x' was pressed. If so, pause for user correction.
+
+    Returns user input, or None if 'x' wasn't pressed.
+    """
+    if not _pause_requested.is_set():
+        return None
+    _pause_requested.clear()
+
+    import sys
+    sys.stdout.write("\n[PAUSED — type correction and press Enter, or just Enter to continue]\n> ")
     sys.stdout.flush()
     line = sys.stdin.readline().strip()
     return line if line else None
@@ -504,8 +525,11 @@ def generate_with_tools(
                 _v(f"\n[Reasoning]: {rc[:1000]}")
 
     if not provider.supports_tools:
-        # Fallback: inject tool results as prompt context
         return _fallback_with_context(provider, messages, tools)
+
+    if interject:
+        from A import info as _hint
+        _hint("Press 'x' at any time to pause and type a correction")
 
     for turn in range(max_turns):
         response = provider.chat(messages, tools=tools)
@@ -523,7 +547,8 @@ def generate_with_tools(
                     _v(f"     args: {tc.function.get('arguments', '{}')[:500]}")
 
         if interject:
-            correction = _check_user_interject(verbose=verbose)
+            _ensure_listener()
+            correction = _check_user_interject()
             if correction:
                 messages.append({
                     "role": "user",
