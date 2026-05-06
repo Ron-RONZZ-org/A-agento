@@ -324,7 +324,7 @@ def generi(
     title_display = titolo or prompto[:40]
     print(f"\n[ {title_display} ]\n")
     print(content.strip())
-    print()
+    print()  # displayed content
 
     success(
         tr_multi(

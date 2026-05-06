@@ -202,15 +202,14 @@ def clear_history(days: int = 30) -> int:
     from datetime import datetime, timedelta, timezone
 
     db = get_db()
-    # Compute cutoff as ISO string - SQLite compares lexicographically
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    cursor = db.execute(
+    db.execute(
         "DELETE FROM historio WHERE kreita_je < ?",
         (cutoff,),
     )
-    # Get rowcount from cursor (sqlite3.Row doesn't have rowcount directly)
-    # Re-query to count deleted rows
-    return len(cursor) if cursor else 0
+    # SQLite's changes() returns the number of rows modified by the last statement
+    result = db.execute_one("SELECT changes() AS cnt")
+    return result["cnt"] if result else 0
 
 
 # --- Template operations ---

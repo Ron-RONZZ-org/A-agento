@@ -18,7 +18,7 @@ class TestAgentService:
 
         # Mock list_recent_emails to return empty list
         with patch.object(service, "list_recent_emails", return_value=[]):
-            with patch("A_agento.service._get_lien_service", return_value=None):
+            with patch("A_agento.service.summarization_mixin.get_lien_service", return_value=None):
                 result = service.summarize_emails(mock_provider, limit=10, unread_only=True)
                 assert result == []
 
@@ -29,7 +29,7 @@ class TestAgentService:
         service = AgentService()
 
         with patch.object(service, "list_recent_emails", return_value=sample_emails):
-            with patch("A_agento.service._get_lien_service", return_value=None):
+            with patch("A_agento.service.summarization_mixin.get_lien_service", return_value=None):
                 summaries = service.summarize_emails(mock_provider, limit=10, unread_only=False)
 
                 assert len(summaries) == 1
@@ -44,7 +44,7 @@ class TestAgentService:
 
         # Mock _check_email_accounts to return False
         with patch.object(service, "_check_email_accounts", return_value=False):
-            with patch("A_agento.service._get_lien_service", return_value=None):
+            with patch("A_agento.service.summarization_mixin.get_lien_service", return_value=None):
                 result = service.summarize_emails(mock_provider)
                 assert result == []
 
@@ -101,7 +101,7 @@ class TestAgentService:
 
     def test_extract_actions_invalid_json(self, sample_email):
         """Test action extraction handles invalid JSON gracefully."""
-        from A_agento.service import AgentService, _extract_json
+        from A_agento.service.helpers import _extract_json
 
         # Test _extract_json helper
         result = _extract_json("not valid json")
@@ -116,16 +116,17 @@ class TestAgentService:
 
         service = AgentService()
 
-        with patch("A_agento.service._get_lien_service", return_value=None):
+        with patch("A_agento.service.summarization_mixin.get_lien_service", return_value=None):
             # Should handle gracefully via _check_email_accounts or direct DB
             pass  # No exception means graceful handling
 
     def test_cross_module_a_organizi_missing(self):
         """Test graceful handling when A-organizi not installed."""
-        from A_agento.service import AgentService, _get_calendar_service, _get_todo_service
+        from A_agento.service import AgentService
+        from A_agento.service.registry import get_calendar_service, get_todo_service
 
-        with patch("A_agento.service._get_calendar_service", return_value=None):
-            with patch("A_agento.service._get_todo_service", return_value=None):
+        with patch("A_agento.service.action_mixin.get_calendar_service", return_value=None):
+            with patch("A_agento.service.action_mixin.get_todo_service", return_value=None):
                 service = AgentService()
                 result = service.create_calendar_event({"title": "Test"})
                 # Should return None gracefully
@@ -135,7 +136,7 @@ class TestAgentService:
         """Test graceful handling when A-encik not installed."""
         from A_agento.service import AgentService
 
-        with patch("A_agento.service._get_encik_service", return_value=None):
+        with patch("A_agento.service.action_mixin.get_encik_service", return_value=None):
             service = AgentService()
             result = service.create_knowledge_entry({"title": "Test", "content": "Content"})
             # Should return None gracefully
@@ -229,35 +230,35 @@ class TestExtractJson:
 
     def test_extract_plain_json(self):
         """Test extracting plain JSON."""
-        from A_agento.service import _extract_json
+        from A_agento.service.helpers import _extract_json
 
         result = _extract_json('{"key": "value"}')
         assert result == {"key": "value"}
 
     def test_extract_json_with_markdown_fence(self):
         """Test extracting JSON from markdown code fence."""
-        from A_agento.service import _extract_json
+        from A_agento.service.helpers import _extract_json
 
         result = _extract_json('```json\n{"key": "value"}\n```')
         assert result == {"key": "value"}
 
     def test_extract_json_with_leading_text(self):
         """Test extracting JSON with leading text."""
-        from A_agento.service import _extract_json
+        from A_agento.service.helpers import _extract_json
 
         result = _extract_json('Here is the result: {"key": "value"}')
         assert result == {"key": "value"}
 
     def test_extract_json_invalid(self):
         """Test extraction returns None for invalid input."""
-        from A_agento.service import _extract_json
+        from A_agento.service.helpers import _extract_json
 
         result = _extract_json("not json at all")
         assert result is None
 
     def test_extract_json_with_single_quotes(self):
         """Test extraction handles various JSON formats."""
-        from A_agento.service import _extract_json
+        from A_agento.service.helpers import _extract_json
 
         # Should try to parse and fail gracefully
         result = _extract_json("{'key': 'value'}")

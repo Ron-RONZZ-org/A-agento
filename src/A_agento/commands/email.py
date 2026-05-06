@@ -166,7 +166,7 @@ def respondi(
         raise typer.Exit(1)
 
     info(tr_multi('Respondo:', 'Reply:', 'Reponse :'))  # Reply:
-    print("\n" + reply + "\n")
+    print("\n" + reply + "\n")  # TODO: use info()
 
     # Save to history
     add_history(

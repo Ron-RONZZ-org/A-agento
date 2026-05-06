@@ -89,7 +89,7 @@ class ActionMixin:
         """
         try:
             todo_service = get_todo_service()
-        except Exception:
+        except ImportError:
             info(
                 tr_multi(
                     "A-organizi ne estas instalita.",
