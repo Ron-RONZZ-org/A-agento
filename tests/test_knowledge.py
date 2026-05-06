@@ -15,17 +15,17 @@ class TestCleanEncOutput:
         assert result.startswith('terminologio')
         assert '```' not in result
 
-    def test_clean_title_comment(self):
-        """Test that leading # comment is stripped."""
+    def test_title_comment_stripped(self):
+        """Test that # title comment is stripped (tolerated by parser, not desired)."""
         from A_agento.commands.knowledge import _clean_enc_output
 
-        raw = '# Albert Einstein\nterminologio.eo = "Albert Einstein"\ndifino.eo = "fizikisto"'
+        raw = '# Albert Einstein\nterminologio.eo = "Albert Einstein"'
         result = _clean_enc_output(raw)
         assert not result.startswith('#')
         assert result.startswith('terminologio')
 
     def test_clean_both(self):
-        """Test both fences and comment stripped."""
+        """Test fences stripped and # comment stripped."""
         from A_agento.commands.knowledge import _clean_enc_output
 
         raw = '```\n# Albert Einstein\nterminologio.eo = "test"\n```'
