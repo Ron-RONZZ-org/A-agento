@@ -77,13 +77,13 @@ Topic: {prompto}
      Example: `\n## germandevena [fizikisto](#d8dd7fa3, wdt:P106)\n` — a concise summary of what the person is most known for/what the concept is fundamentally
 
 3. STYLE for `difino.{{lang}}`
-   - Use \n##\n for major sections within difino, ### for minor sections
+   - Use ## for major sections within difino, ### for minor sections
    - section content must be in markdown multi-level `-` lists
     - one idea, one point
     - no point should exceed 60 char
      - if too long, split into a multi-level list with sub-points
 
-3. **WORKFLOW for linking entries** (use the available MCP tools):
+4. **WORKFLOW for linking entries** (use the available MCP tools):
     - `search_encik("term")` — find an entry by title. Returns a JSON array of entries with uuid and titolo.
       - If one match → use `uuid` directly.
       - If multiple matches → pick the most relevant one by titolo.
