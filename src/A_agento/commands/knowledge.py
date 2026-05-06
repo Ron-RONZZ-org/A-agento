@@ -70,6 +70,35 @@ Generate only the .enc content, no extra explanation:''',
 }
 
 
+def _clean_enc_output(content: str) -> str:
+    """Clean up LLM-generated .enc content by stripping markdown artifacts.
+
+    - Removes leading/trailing code fences (```enc, ```, ```toml, etc.)
+    - Removes leading # comment line (title is already in terminologio)
+
+    Args:
+        content: Raw LLM output
+
+    Returns:
+        Cleaned .enc content
+    """
+    import re
+
+    # Strip leading and trailing code fences
+    content = re.sub(r'^```\w*\s*\n', '', content)
+    content = re.sub(r'\n```\s*$', '', content)
+
+    # Strip leading # Title comment if present (redundant with terminologio)
+    lines = content.split('\n')
+    while lines and lines[0].startswith('#') and not lines[0].startswith('##'):
+        lines.pop(0)
+    # Also remove blank lines between the stripped comment and real content
+    while lines and not lines[0].strip():
+        lines.pop(0)
+
+    return '\n'.join(lines).strip()
+
+
 def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
     """Save generated content to a file, showing confirmation.
 
@@ -193,6 +222,8 @@ def generi(
             prompt = _FORMAT_PROMPTS["enc"].format(title_line=title_line, prompto=prompto)
             messages = [{"role": "user", "content": prompt}]
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS)
+            # Post-process: strip code fences and leading # comment
+            content = _clean_enc_output(content)
         else:
             prompt = _FORMAT_PROMPTS[formato].format(title_line=title_line, prompto=prompto)
             content = provider.generate(prompt)
