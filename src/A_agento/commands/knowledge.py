@@ -53,7 +53,9 @@ Topic: {prompto}
 2. SYNTAX RULES
    - Identical terms: terminologio.(eo,fr,en)="Same Name" (literal, not a format parameter)
    - Links to existing entries: [display text](#uuid) or [title](#ec#uuid-prefix)
-   - Semantic arcs: [value](#uuid, wdt:PROPERTY) (e.g. [1886](#e7a4692e, wdt:P571))
+   - Semantic arcs: [value](#uuid, wdt:PROPERTY) — the SPECIFIC entity goes in brackets, the category label comes after a colon.
+     Example: `- Institucio de eduko: [Svisa Federacia Instituto de Teknologio (ETH)](#UUID, wdt:P69) en Zuriko (1896–1900)`
+     NOT: `- [Institucio de eduko](#, wdt:P69): Svisa Federacia Instituto de Teknologio...`
    - KaTeX formulas: $\\vec{{E}}=0$
    - Multi-section definitions: use ## for subsections
    - Keep formatting minimal, no extra explanation inside the .enc file
@@ -178,6 +180,16 @@ def generi(
             "Chemin du fichier pour sauvegarder le resultat (ex: sortie.enc)",  # fr
         ),
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help=tr_multi(
+            "Montri la plenan konversacion kun LLM (inkluzive de pensado)",  # eo
+            "Show full LLM conversation (including reasoning/thinking)",  # en
+            "Afficher la conversation complète avec LLM (y compris le raisonnement)",  # fr
+        ),
+    ),
 ) -> None:
     """Generate content with AI.
 
@@ -222,7 +234,7 @@ def generi(
         if formato == "enc":
             prompt = _FORMAT_PROMPTS["enc"].format(title_line=title_line, prompto=prompto)
             messages = [{"role": "user", "content": prompt}]
-            content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS)
+            content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose)
             # Post-process: strip code fences and leading # comment
             content = _clean_enc_output(content)
         else:

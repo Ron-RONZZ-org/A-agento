@@ -278,6 +278,7 @@ def generate_with_tools(
     messages: list[dict],
     tools: list[dict] | None = None,
     max_turns: int = 5,
+    verbose: bool = False,
 ) -> str:
     """Multi-turn generation with tool calling support.
 
@@ -288,6 +289,7 @@ def generate_with_tools(
         messages: Initial chat messages
         tools: Tool definitions (optional, uses ENCIK_TOOLS by default)
         max_turns: Maximum tool call rounds
+        verbose: If True, print full conversation to terminal
 
     Returns:
         Generated text content
@@ -295,12 +297,33 @@ def generate_with_tools(
     if tools is None:
         tools = ENCIK_TOOLS
 
+    if verbose:
+        from A.utils import info as _v
+        _v("\n═══════ LLM Conversation Start ═══════")
+        for msg in messages:
+            role = msg.get("role", "?").upper()
+            content = msg.get("content", "")
+            rc = msg.get("reasoning_content", "")
+            _v(f"\n── [{role}] ──")
+            if content:
+                _v(content[:2000])
+            if rc:
+                _v(f"\n[Reasoning]: {rc[:1000]}")
+
     if not provider.supports_tools:
         # Fallback: inject tool results as prompt context
         return _fallback_with_context(provider, messages, tools)
 
     for turn in range(max_turns):
         response = provider.chat(messages, tools=tools)
+
+        if verbose:
+            from A.utils import info as _v
+            _v(f"\n── [ASSISTANT (turn {turn+1})] ──")
+            if response.content:
+                _v(response.content[:2000])
+            if response.reasoning_content:
+                _v(f"\n[Reasoning]: {response.reasoning_content[:1000]}")
 
         if not response.tool_calls:
             return response.content  # Final response — no more tool calls
