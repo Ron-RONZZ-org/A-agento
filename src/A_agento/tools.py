@@ -77,28 +77,7 @@ WIKIDATA_PROPERTY_TOOL = {
 }
 
 # Combined tools for encik generation
-ENSURE_YEAR_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "ensure_year_entry",
-        "description": "Create or retrieve an encik entry for a calendar year (e.g. 1879). "
-                       "If the year entry already exists, returns its UUID. "
-                       "If not, creates a new year entry with standard template and returns its UUID. "
-                       "Use this when you need to reference a year in a semantic arc like [1879](#uuid, wdt:P569).",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "year": {
-                    "type": "string",
-                    "description": "Four-digit year (e.g. '1879', '2024')",
-                }
-            },
-            "required": ["year"],
-        },
-    },
-}
-
-ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL, WIKIDATA_PROPERTY_TOOL, ENSURE_YEAR_TOOL]
+ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL, WIKIDATA_PROPERTY_TOOL]
 
 
 # ── Tool execution ───────────────────────────────────────────────────────────
@@ -126,14 +105,16 @@ def execute_tool_call(tool_call: ToolCall) -> str:
         return _get_encik_entry(args.get("uuid", ""))
     elif name == "wikidata_property_id":
         return _lookup_wikidata_property(args.get("query", ""))
-    elif name == "ensure_year_entry":
-        return _ensure_year_entry(args.get("year", ""))
     else:
         return json.dumps({"error": f"Unknown tool: {name}"})
 
 
 def _search_encik(query: str) -> str:
     """Search encik DB by keyword/title.
+
+    If the query is a 4-digit year and no results are found, automatically
+    creates a year entry and returns its UUID. This eliminates the need for
+    the LLM to call a separate tool for year entries.
 
     Args:
         query: Search query string
@@ -153,6 +134,12 @@ def _search_encik(query: str) -> str:
         )
         if results:
             return json.dumps(results, ensure_ascii=False, default=str)
+
+        # No results: if query is a 4-digit year, auto-create the entry
+        clean = query.strip()
+        if clean.isdigit() and len(clean) == 4:
+            return _ensure_year_entry(clean)
+
         return json.dumps({"message": f"No entries found for '{query}'"})
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
