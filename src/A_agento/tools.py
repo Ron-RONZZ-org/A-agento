@@ -413,6 +413,35 @@ def _looks_like_raw_tool_output(content: str) -> bool:
     return False
 
 
+# ── Output validation ────────────────────────────────────────────────────────
+
+
+def is_raw_tool_output(content: str) -> bool:
+    """Detect if LLM output is raw JSON echoed from tool results.
+
+    Any valid JSON that isn't .enc content is tool output.
+    Safe because generate_with_tools is only called for --formato enc,
+    and .enc files never start with [ or {.
+
+    Args:
+        content: LLM response content
+
+    Returns:
+        True if content looks like raw tool output
+    """
+    stripped = content.strip()
+    if not stripped:
+        return True
+    if (stripped.startswith("[") and stripped.endswith("]")) or \
+       (stripped.startswith("{") and stripped.endswith("}")):
+        try:
+            json.loads(stripped)
+            return True
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return False
+
+
 # ── Orchestration ────────────────────────────────────────────────────────────
 
 
@@ -420,7 +449,7 @@ def generate_with_tools(
     provider: LLMProvider,
     messages: list[dict],
     tools: list[dict] | None = None,
-    max_turns: int = 5,
+    max_turns: int = 30,
     verbose: bool = False,
 ) -> str:
     """Multi-turn generation with tool calling support.
@@ -467,10 +496,14 @@ def generate_with_tools(
                 _v(response.content[:8000])
             if response.reasoning_content:
                 _v(f"\n[Reasoning]: {response.reasoning_content[:4000]}")
+            if response.tool_calls:
+                for tc in response.tool_calls:
+                    _v(f"\n  TOOL CALL: {tc.function.get('name', '?')}")
+                    _v(f"     args: {tc.function.get('arguments', '{}')[:500]}")
 
         if not response.tool_calls:
             # Check for raw tool output echoed by the model
-            if _looks_like_raw_tool_output(response.content):
+            if is_raw_tool_output(response.content):
                 if verbose:
                     _v("\n[WARNING] Raw tool output detected, retrying...")
                 messages.append({
@@ -494,14 +527,43 @@ def generate_with_tools(
         # Execute each tool call and add result
         for tc in response.tool_calls:
             result = execute_tool_call(tc)
+            if verbose:
+                _v(f"\n  TOOL RESULT ({tc.function.get('name', '?')}):")
+                _v(f"     {result[:600]}")
             messages.append({
                 "role": "tool",
                 "tool_call_id": tc.id,
                 "content": result,
             })
 
-    # Max turns reached — return last assistant content
-    return messages[-1].get("content", "") if messages else ""
+        # Doomloop detection: same tool call 3+ times -> break the loop
+        _tool_call_history: dict[str, int] = getattr(
+            generate_with_tools, "_tool_hist", {}
+        )
+        for tc in response.tool_calls:
+            sig = f"{tc.function.get('name', '')}|{tc.function.get('arguments', '')}"
+            _tool_call_history[sig] = _tool_call_history.get(sig, 0) + 1
+        generate_with_tools._tool_hist = _tool_call_history
+        if any(c >= 3 for c in _tool_call_history.values()):
+            if verbose:
+                _v("\n[WARNING] Repeated tool calls detected, forcing generation...")
+            messages.append({
+                "role": "user",
+                "content": "You have been repeating tool calls. Stop now and generate the content based on what you already have."
+            })
+            continue
+
+    # Max turns reached — force one final generation without tools
+    if verbose:
+        from A.utils import info as _v
+        _v("\n── [FORCED FINAL GENERATION] ──")
+    final_response = provider.chat(messages)  # No tools
+    final_content = final_response.content or ""
+    if verbose and final_content:
+        _v(final_content[:2000])
+    if final_content and not is_raw_tool_output(final_content):
+        return final_content
+    return ""  # Complete failure
 
 
 def _fallback_with_context(
