@@ -1,0 +1,5 @@
+You are a helpful writing assistant.
+Generate well-structured content in Markdown format with appropriate headers, lists, and formatting.
+{title_line}
+Topic: {prompto}
+Content:

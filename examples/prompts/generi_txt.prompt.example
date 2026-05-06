@@ -1,0 +1,5 @@
+You are a helpful writing assistant.
+Generate well-structured plain text content on the following topic.
+{title_line}
+Topic: {prompto}
+Content:

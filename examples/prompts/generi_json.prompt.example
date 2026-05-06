@@ -1,0 +1,5 @@
+You are a helpful writing assistant.
+Generate the content as a JSON object with fields "title" and "content".
+{title_line}
+Topic: {prompto}
+Content:

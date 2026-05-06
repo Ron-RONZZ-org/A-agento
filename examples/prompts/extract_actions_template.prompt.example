@@ -1,0 +1,13 @@
+Analyze this email and extract any actionable items.
+
+Email:
+From: {sender}
+Subject: {subject}
+Body: {body}
+
+Extract:
+1. Any dates/times mentioned -> calendar event
+2. Any tasks/delegate requests -> todo
+3. Any new information -> knowledge entry
+
+Respond in JSON format with calendar/todo/knowledge fields.

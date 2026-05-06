@@ -14,11 +14,22 @@ import typer
 from A import tr, tr_multi, info, error, success
 from A_agento.commands._helpers import get_provider_or_exit
 from A_agento.tools import generate_with_tools, ENCIK_TOOLS
+from A_agento.prompt_loader import load_prompt
 
 
 # ── Format-specific prompt builders ──────────────────────────────────────────
 
-_FORMAT_PROMPTS = {
+
+def _get_format_prompt(formato: str) -> str:
+    """Load a format prompt with file override support.
+
+    Checks ~/.config/A/agento/prompts/generi_<formato>.prompt first.
+    Falls back to embedded default.
+    """
+    return load_prompt(f"generi_{formato}", _FORMAT_DEFAULTS[formato])
+
+
+_FORMAT_DEFAULTS = {
     "txt": """You are a helpful writing assistant.
 Generate well-structured plain text content on the following topic.
 {title_line}
@@ -231,14 +242,14 @@ def generi(
     ))
 
     try:
+        prompt_text = _get_format_prompt(formato)
         if formato == "enc":
-            prompt = _FORMAT_PROMPTS["enc"].format(title_line=title_line, prompto=prompto)
+            prompt = prompt_text.format(title_line=title_line, prompto=prompto)
             messages = [{"role": "user", "content": prompt}]
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose)
-            # Post-process: strip code fences and leading # comment
             content = _clean_enc_output(content)
         else:
-            prompt = _FORMAT_PROMPTS[formato].format(title_line=title_line, prompto=prompto)
+            prompt = prompt_text.format(title_line=title_line, prompto=prompto)
             content = provider.generate(prompt)
     except Exception as e:
         error(

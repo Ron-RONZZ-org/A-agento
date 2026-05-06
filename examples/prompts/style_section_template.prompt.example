@@ -1,0 +1,7 @@
+<writing-style>
+The user's writing style, based on their past emails:
+<examples>
+{style_examples}
+</examples>
+When generating content, mirror the above style.
+</writing-style>

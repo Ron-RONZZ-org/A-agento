@@ -1,0 +1,6 @@
+The AI has suggested the following action:
+
+{action_type}: {action_title}
+Details: {action_details}
+
+Do you want to proceed?

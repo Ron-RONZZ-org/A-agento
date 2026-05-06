@@ -91,6 +91,55 @@ Discover available UUIDs and profiles via `agento agordi ls`.
 - `agento agordi` — Provider configuration (default, aldoni, vidi, modifi, forigi, ls, testi)
 - `agento stilo` — Writing style samples (aldoni, ls, forigi, aktiva)
 
+### New Commands
+
+| Command | Purpose |
+|---------|---------|
+| `agento generi <prompto> --formato enc` | Generate .enc knowledge entries with AI |
+| `agento generi --formato enc --verbose` | Show full LLM conversation (prompts, reasoning, tool calls) |
+
+### Custom Prompt Files
+
+All AI prompts (system instructions, format templates) support file-based override.
+Copy `.prompt.example` files from `examples/prompts/` to `~/.config/A/agento/prompts/`
+and edit them to customize AI behavior:
+
+```bash
+cp -r examples/prompts/*.prompt.example ~/.config/A/agento/prompts/
+# Rename to remove .example suffix:
+for f in ~/.config/A/agento/prompts/*.example; do mv "$f" "${f%.example}"; done
+# Edit any prompt:
+$EDITOR ~/.config/A/agento/prompts/system_base.prompt
+```
+
+Available prompt files:
+
+| File | Used by | Format variables |
+|------|---------|-----------------|
+| `system_base` | All email commands | — |
+| `system_summarize` | `resumu` | — |
+| `system_reply` | `respondi` | — |
+| `system_actions` | `agu` | — |
+| `summarize_template` | `resumu` | `{sender}`, `{recipient}`, `{subject}`, `{body}` |
+| `reply_template` | `respondi` | `{sender}`, `{subject}`, `{body}`, `{relationship}`, `{tone}` |
+| `extract_actions_template` | `agu` | `{sender}`, `{subject}`, `{body}` |
+| `confirm_action_template` | Action confirmation | `{action_type}`, `{action_title}`, `{action_details}` |
+| `style_section_template` | Style injection | `{style_examples}` |
+| `generi_txt` | `generi --formato txt` | `{title_line}`, `{prompto}` |
+| `generi_md` | `generi --formato md` | `{title_line}`, `{prompto}` |
+| `generi_json` | `generi --formato json` | `{title_line}`, `{prompto}` |
+| `generi_enc` | `generi --formato enc` | `{title_line}`, `{prompto}` |
+
+Prompts are loaded on first use and cached in memory. Changes take effect on next A-agento invocation.
+
+### .enc Generation Guidelines
+
+When using `generi --formato enc`:
+- Use **years only** for dates (e.g. "1879" not "1879-03-14")
+- Semantic arc format: `Institucio de eduko: [ETH Zurich](#UUID, wdt:P69)` — specific entity in brackets, category label before colon
+- Year entries (1879, 2024) are auto-created by `search_encik` tool when not found
+- Code fences and `#` title comments are auto-stripped from LLM output
+
 ## Security Rules
 
 1. **API key storage**: OpenAI key stored in system keyring (never SQLite)

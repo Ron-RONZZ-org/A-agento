@@ -1,0 +1,11 @@
+Generate a professional email reply draft.
+
+Context:
+- Original email from: {sender}
+- Subject: {subject}
+- Original body: {body}
+
+Your relationship: {relationship}
+Tone: {tone}
+
+Generate a concise reply draft (2-4 sentences):

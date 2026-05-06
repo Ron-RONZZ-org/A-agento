@@ -1,0 +1,10 @@
+Summarize the following email in 2-3 sentences:
+
+From: {sender}
+To: {recipient}
+Subject: {subject}
+
+Body:
+{body}
+
+Summary:
