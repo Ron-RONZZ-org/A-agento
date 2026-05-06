@@ -231,7 +231,10 @@ def generate_with_tools(
             return response.content  # Final response — no more tool calls
 
         # Add assistant message with tool calls
+        # Preserve reasoning_content (DeepSeek thinking mode requires echo)
         assistant_msg: dict[str, Any] = {"role": "assistant", "content": response.content}
+        if response.reasoning_content:
+            assistant_msg["reasoning_content"] = response.reasoning_content
         assistant_msg["tool_calls"] = [
             {"id": tc.id, "type": tc.type, "function": tc.function}
             for tc in response.tool_calls
