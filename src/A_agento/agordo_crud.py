@@ -1,9 +1,10 @@
+from __future__ import annotations
+from A import confirm_action
 """A-agento agordo CRUD commands — provider configuration management.
 
 Commands: vidi, modifi, forigi (aldoni lives in agordo.py)
 """
 
-from __future__ import annotations
 
 from typing import List, Optional
 
@@ -250,7 +251,7 @@ def forigi(
         agento agordi forigi a1b2c3d4-... openai:personal -y
     """
     if not jes and len(provizantoj) > 1:
-        confirm = typer.confirm(
+        confirm = confirm_action(
             tr_multi(
                 f"Forigi {len(provizantoj)} agordojn?",
                 f"Delete {len(provizantoj)} configurations?",

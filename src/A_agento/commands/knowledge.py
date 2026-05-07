@@ -1,10 +1,11 @@
+from __future__ import annotations
+from A import confirm_action
 """A-agento AI commands for text generation.
 
 Functions:
 - generi: Generate content with AI (txt, md, json, enc formats)
 """
 
-from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -98,7 +99,7 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
         content: Content to write
         titolo: Optional title for user feedback
     """
-    if path.exists() and not typer.confirm(
+    if path.exists() and not confirm_action(
         tr_multi(
             f"Dosiero {path} jam ekzistas. Anstataŭigi?",
             f"File {path} already exists. Overwrite?",
