@@ -98,18 +98,23 @@ Discover available UUIDs and profiles via `agento agordi ls`.
 | `agento generi <prompto> --formato enc` | Generate .enc knowledge entries with AI |
 | `agento generi --formato enc --verbose` | Show full LLM conversation (prompts, reasoning, tool calls) |
 
-### Custom Prompt Files
+### Prompt Files
 
-All AI prompts (system instructions, format templates) support file-based override.
-Copy `.prompt.example` files from `examples/prompts/` to `~/.config/A/agento/prompts/`
-and edit them to customize AI behavior:
+All AI prompts are stored as standalone `.prompt` files — no embedded Python strings.
+Three-tier loading:
+
+| Tier | Location | Who edits |
+|------|----------|-----------|
+| User override | `~/.config/A/agento/prompts/<name>.prompt` | End users |
+| Packaged default | `src/A_agento/prompts/<name>.prompt` | Prompt engineers |
+| Fallback | Embedded string in `prompt_loader.py` | Developers |
+
+To customize, copy the file you want to edit from the repo to your config:
 
 ```bash
-cp -r examples/prompts/*.prompt.example ~/.config/A/agento/prompts/
-# Rename to remove .example suffix:
-for f in ~/.config/A/agento/prompts/*.example; do mv "$f" "${f%.example}"; done
-# Edit any prompt:
-$EDITOR ~/.config/A/agento/prompts/system_base.prompt
+mkdir -p ~/.config/A/agento/prompts
+cp src/A_agento/prompts/generi_enc.prompt ~/.config/A/agento/prompts/
+$EDITOR ~/.config/A/agento/prompts/generi_enc.prompt
 ```
 
 Available prompt files:
