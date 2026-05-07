@@ -1,10 +1,12 @@
 """Prompt loader with file-based override support.
 
-Loads prompts from ~/.config/A/agento/prompts/<name>.prompt if available.
-Falls back to embedded defaults in code. Caches loaded prompts in memory.
+Three-tier loading:
+1. ~/.config/A/agento/prompts/<name>.prompt — user override
+2. src/A_agento/prompts/<name>.prompt — packaged default
+3. Embedded string in code — last resort fallback
 
-Users can copy .prompt.example files to .prompt and edit them to customize
-AI behavior without modifying Python code.
+Users can copy .prompt files to ~/.config/A/agento/prompts/ and edit.
+Prompt engineers edit the .prompt files in the repo (no Python code).
 """
 
 from __future__ import annotations
@@ -14,37 +16,50 @@ from pathlib import Path
 from A.core.paths import config_dir
 
 # Directory where user's custom prompt files live
-_PROMPT_DIR: Path = config_dir() / "agento" / "prompts"
-# In-memory cache: name → content
+_USER_PROMPT_DIR: Path = config_dir() / "agento" / "prompts"
+# Directory where packaged default prompt files live
+_PKG_PROMPT_DIR: Path = Path(__file__).parent / "prompts"
+# In-memory cache: name -> content
 _CACHE: dict[str, str] = {}
 
 
-def load_prompt(name: str, default: str) -> str:
-    """Load a prompt by name, with file-based override support.
+def load_prompt(name: str, default: str = "") -> str:
+    """Load a prompt by name, with three-tier fallback.
 
-    Checks ~/.config/A/agento/prompts/<name>.prompt first.
-    If the file doesn't exist, returns the embedded default.
+    Priority:
+    1. ~/.config/A/agento/prompts/<name>.prompt — user override
+    2. src/A_agento/prompts/<name>.prompt — packaged default
+    3. Embedded `default` string — last resort
 
     Results are cached in memory after first load.
 
     Args:
-        name: Prompt identifier (e.g. "system_base", "summarize_template")
-        default: Embedded default prompt string
+        name: Prompt identifier (e.g. "generi_enc", "system_base")
+        default: Embedded fallback string (used if no file found)
 
     Returns:
-        Prompt string (from file or default)
+        Prompt string
     """
     if name in _CACHE:
         return _CACHE[name]
 
-    path = _PROMPT_DIR / f"{name}.prompt"
+    # 1. User override
+    path = _USER_PROMPT_DIR / f"{name}.prompt"
     if path.exists():
         content = path.read_text(encoding="utf-8")
-    else:
-        content = default
+        _CACHE[name] = content
+        return content
 
-    _CACHE[name] = content
-    return content
+    # 2. Packaged default
+    pkg_path = _PKG_PROMPT_DIR / f"{name}.prompt"
+    if pkg_path.exists():
+        content = pkg_path.read_text(encoding="utf-8")
+        _CACHE[name] = content
+        return content
+
+    # 3. Embedded fallback
+    _CACHE[name] = default
+    return default
 
 
 def clear_cache() -> None:
@@ -53,8 +68,8 @@ def clear_cache() -> None:
 
 
 def get_prompt_dir() -> Path:
-    """Get the prompt directory path."""
-    return _PROMPT_DIR
+    """Get the user prompt directory path."""
+    return _USER_PROMPT_DIR
 
 
 __all__ = [

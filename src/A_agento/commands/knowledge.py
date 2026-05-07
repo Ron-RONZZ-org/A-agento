@@ -22,86 +22,16 @@ from A_agento.prompt_loader import load_prompt
 
 
 def _get_format_prompt(formato: str) -> str:
-    """Load a format prompt with file override support.
+    """Load a format prompt with three-tier fallback.
 
-    Checks ~/.config/A/agento/prompts/generi_<formato>.prompt first.
-    Falls back to embedded default.
+    1. ~/.config/A/agento/prompts/generi_<formato>.prompt (user override)
+    2. src/A_agento/prompts/generi_<formato>.prompt (packaged default)
+    3. Embedded string (last resort)
     """
-    return load_prompt(f"generi_{formato}", _FORMAT_DEFAULTS[formato])
+    return load_prompt(f"generi_{formato}")
 
 
-_FORMAT_DEFAULTS = {
-    "txt": """You are a writing assistant.
-Generate structured plain text content on the following topic.
-{title_line}
-Topic: {prompto}
-Content:""",
 
-    "md": """You are a writing assistant.
-Generate structured content in **Markdown** format with appropriate headers, lists, and formatting.
-{title_line}
-Topic: {prompto}
-Content:""",
-
-    "json": """You are a writing assistant.
-Generate the content as a **JSON object** with fields "title" and "content".
-{title_line}
-Topic: {prompto}
-{"title": "...", "content": "..."}""",
-
-    "enc": '''Generate an .enc file for the encik personal knowledge base. Follow the format rules below precisely.
-## .enc format rules
-
-1. FILE STRUCTURE
-   terminologio.{{lang}} = "term"        # required, one per language
-   difino.{{lang}} = "short def"         # single-line definition
-   difino.{{lang}} = """               # multi-line definition
-
-   ## one-line summary of the entry at the start of the definition
-
-   - point 1
-   - point 2
-   """
-
-2. SYNTAX RULES
-   - Identical terms: terminologio.(eo,fr,en)="Same Name" (literal, not a format parameter)
-   - Semantic arcs: [value](#uuid, wdt:PROPERTY) — the SPECIFIC entity goes in brackets
-     Example: `- Institucio de eduko: [Svisa Federacia Instituto de Teknologio (ETH)](#UUID, wdt:P69) en Zuriko (1896–1900)`
-     NOT: `- [Institucio de eduko](#, wdt:P69): Svisa Federacia Instituto de Teknologio...`
-   - KaTeX formulas: $\\vec{{E}}=0$
-   - Multi-section definitions: use ## for subsections
-   - Keep formatting minimal, no extra explanation inside the .enc file
-   - **For time, refer to year, not date** — "1879" not "1879-03-14". Encik convention uses years for simplicity
-    - **Every year mentioned must have a semantic arc**: link each year to its entry with [year](#UUID, wdt:P569) (birth), wdt:P570 (death), wdt:P69 (educated at), etc.
-      Example: birth `[1879](#a1b2c3d4, wdt:P569)` — call search_encik("1879") to get the UUID.
-   - **difino must start with `## one-line summary`** wrapped between empty lines after the opening """, then ## sections
-     Example: `\n## germandevena [fizikisto](#d8dd7fa3, wdt:P106)\n` — a concise summary of what the person is most known for/what the concept is fundamentally
-
-3. STYLE for `difino.{{lang}}`
-   - Use ## for major sections within difino, ### for minor sections
-   - section content must be in markdown multi-level `-` lists
-    - one idea, one point
-    - no point should exceed 60 char
-     - if too long, split into a multi-level list with sub-points
-
-4. **WORKFLOW for linking entries** (use the available MCP tools):
-    - `search_encik("term")` — find an entry by title. Returns a JSON array of entries with uuid and titolo.
-      - If one match → use `uuid` directly.
-      - If multiple matches → pick the most relevant one by titolo.
-      - If no matches AND term is a year (e.g. "1879", "44 BCE") → entry auto-created, uuid returned.
-      - If no matches for non-year → skip the link (user adds it later).
-      - Search term rules:
-        - be an elementary concept: search for `fizikisto`, not `germana fizikisto` (two concepts: germana + fizikisto)
-        - be a noun: when you need `franca` (French), search for `Francio` (France)
-    - `wikidata_property_id("keyword")` — returns a JSON array of matching properties with id and label.
-      - Pick the most relevant property for the relationship you need.
-    - Every `[text](#UUID, wdt:PROP)` link needs TWO lookups: `search_encik("text")` for UUID + `wikidata_property_id("keyword")` for PROP.
-    - Example: to write `[fizikisto](#UUID, wdt:P106)`, call search_encik("fizikisto") + wikidata_property_id("profession").
-    - The `[text]` does not have to be the entry title. E.g., link to entry `Francio` as `[franco](#UUID, wdt:P27)` if the person is French.
-
-Topic: {prompto}
-Generate only the .enc content, no extra explanation:''',
-}
 
 
 def _looks_like_raw_json(content: str) -> bool:
