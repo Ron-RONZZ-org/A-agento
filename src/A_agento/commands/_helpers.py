@@ -89,9 +89,18 @@ def _construct_provider(provider_name: str, api_key: str, model: str | None = No
 
 
 def confirm_action(description: str) -> bool:
-    """Show action preview and ask user to confirm."""
+    """Show action preview and ask user to confirm (locale-aware).
+
+    Args:
+        description: Action description
+
+    Returns:
+        True if confirmed
+    """
+    from A import confirm_action as _core_confirm
+
     info(f"Proponita ago: {description}")
-    return typer.confirm(tr_multi("Cu plenumi?", "Execute?", "Executer?"))
+    return _core_confirm(tr_multi("Cu plenumi?", "Execute?", "Executer?"))
 
 
 __all__ = [
