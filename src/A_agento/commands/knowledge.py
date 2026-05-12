@@ -251,7 +251,7 @@ def generi(
     provider = get_provider_or_exit(provizanto)
     # Increase token limit for .enc generation (full entries with tool calls)
     if formato == "enc":
-        provider._max_tokens = 4096
+        provider._max_tokens = 16384
     title_line = f"Title: {titolo}" if titolo else ""
 
     info(tr_multi(
