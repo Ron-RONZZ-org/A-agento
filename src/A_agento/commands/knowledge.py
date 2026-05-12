@@ -129,8 +129,6 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
         content: Content to write
         titolo: Optional title for user feedback
     """
-    import typer
-
     while True:
         if path.exists() and not confirm_action(
             tr_multi(
@@ -140,20 +138,23 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
             ),
             default=False,
         ):
-            alt = typer.prompt(
-                tr_multi(
-                    "Alternativa vojo (malplena por nuligi):",
-                    "Alternative path (empty to cancel):",
-                    "Chemin alternatif (vide pour annuler) :",
-                ),
-                default="",
+            import sys
+
+            prompt_msg = tr_multi(
+                "Alternativa vojo (malplena por nuligi): ",
+                "Alternative path (empty to cancel): ",
+                "Chemin alternatif (vide pour annuler) : ",
             )
-            if not alt.strip():
+            if sys.stdout is not None:
+                sys.stdout.write(prompt_msg)
+                sys.stdout.flush()
+            alt = sys.stdin.readline().strip() if hasattr(sys.stdin, "readline") else ""
+            if not alt:
                 info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
                 return
-            path = Path(alt.strip()).expanduser().resolve()
+            path = Path(alt).expanduser().resolve()
             path.parent.mkdir(parents=True, exist_ok=True)
-            continue  # re-check the new path
+            continue
 
         path.write_text(content, encoding="utf-8")
         success(
