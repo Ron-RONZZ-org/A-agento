@@ -170,6 +170,23 @@ def _search_encik(query: str) -> str:
                 (f"%{query}%", f"%{query}%", f"{query}%"),
             )
         if results:
+            # Check if query is a year — ensure year entry exists even if
+            # unrelated entries matched (e.g., "1945" matching "UN" entry text)
+            clean = query.strip()
+            year = _parse_year(clean)
+            if year is not None:
+                # Create or get the year entry
+                bce = clean.lower().endswith("bce") or clean.lower().endswith("bc") or "a.k.e" in clean.lower() or "a.k." in clean.lower()
+                year_result = _ensure_year_entry(str(year), bce=bce)
+                year_data = json.loads(year_result)
+                if "uuid" in year_data:
+                    # Fetch the year entry and add it as the first result
+                    year_entry = db.execute_one(
+                        "SELECT uuid, titolo, substr(difinio, 1, 200) as preview FROM encik WHERE uuid = ?",
+                        (year_data["uuid"],),
+                    )
+                    if year_entry:
+                        results.insert(0, year_entry)
             return json.dumps(results, ensure_ascii=False, default=str)
 
         # No results: if query is a year (CE or BCE), auto-create the entry
@@ -194,6 +211,7 @@ def _get_encik_entry(uuid: str) -> str:
     """
     try:
         from A_encik.data.storage import get_db as encik_db
+        from A_encik.data.storage import row_to_dict
         from A_encik.enc_format import entry_to_enc
 
         db = encik_db()
@@ -201,6 +219,8 @@ def _get_encik_entry(uuid: str) -> str:
             "SELECT * FROM encik WHERE uuid LIKE ?", (f"{uuid}%",)
         )
         if entry:
+            # Deserialize JSON fields before passing to entry_to_enc
+            entry = row_to_dict(entry)
             enc_text = entry_to_enc(entry)
             result = {
                 "uuid": entry["uuid"],
