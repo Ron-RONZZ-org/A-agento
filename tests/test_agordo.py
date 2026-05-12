@@ -20,19 +20,24 @@ class TestDefaultCommand:
         assert result.exit_code == 0
         assert "default" in result.output.lower()
 
-    @patch("A_agento.agordo.set_default_provider")
-    def test_default_valid_provider(self, mock_set):
-        """Test setting a valid provider."""
-        result = runner.invoke(app, ["agordi", "default", "openai"])
-        assert result.exit_code == 0
-        mock_set.assert_called_once_with("openai")
+    def test_default_not_configured(self):
+        """Test default on a provider that has no config yet."""
+        with patch("A_agento.agordo.find_config", return_value=None):
+            result = runner.invoke(app, ["agordi", "default", "openai"])
+            assert result.exit_code != 0
+            assert "ne estas agordita" in result.output.lower() or "not configured" in result.output.lower()
 
-    @patch("A_agento.agordo.set_default_provider")
-    def test_default_ollama(self, mock_set):
-        """Test setting ollama as default."""
-        result = runner.invoke(app, ["agordi", "default", "ollama"])
-        assert result.exit_code == 0
-        mock_set.assert_called_once_with("ollama")
+    def test_default_sets_prioritato(self):
+        """Test default sets prioritato=0 and shifts others."""
+        mock_config = {"uuid": "abc123", "provider": "openai", "profile": "default"}
+        with patch("A_agento.agordo.find_config", return_value=mock_config), \
+             patch("A_agento.data.provider_config.get_db") as mock_get_db:
+            mock_db = Mock()
+            mock_get_db.return_value = mock_db
+            result = runner.invoke(app, ["agordi", "default", "openai"])
+            assert result.exit_code == 0
+            # Should update prioritato=0 for openai, shift others
+            assert mock_db.execute.call_count >= 2
 
     def test_default_invalid_provider(self):
         """Test invalid provider name."""
@@ -50,15 +55,12 @@ class TestAldoniCommand:
         assert result.exit_code == 0
         assert "aldoni" in result.output.lower()
 
-    @patch("A_agento.agordo.set_default_provider")
-    @patch("A_agento.agordo.list_provider_configs")
     @patch("A_agento.agordo.save_provider_config")
     @patch("A_agento.agordo.save_api_key")
     def test_aldoni_with_key(
-        self, mock_save_key, mock_save_cfg, mock_list, mock_set_default
+        self, mock_save_key, mock_save_cfg
     ):
         """Test adding a key with --key option."""
-        mock_list.return_value = []  # No existing configs
         mock_save_key.return_value = True
 
         result = runner.invoke(
@@ -75,16 +77,13 @@ class TestAldoniCommand:
             "sk-test123", provider="openai", profile="work"
         )
         mock_save_cfg.assert_called_once()
-        mock_set_default.assert_called_once_with("openai")
 
-    @patch("A_agento.agordo.list_provider_configs")
     @patch("A_agento.agordo.save_provider_config")
     @patch("A_agento.agordo.save_api_key")
     def test_aldoni_with_base_url(
-        self, mock_save_key, mock_save_cfg, mock_list
+        self, mock_save_key, mock_save_cfg
     ):
         """Test adding a key with custom base URL."""
-        mock_list.return_value = [{"provider": "ollama"}]  # Existing config
         mock_save_key.return_value = True
 
         result = runner.invoke(
@@ -112,9 +111,7 @@ class TestAldoniCommand:
     def test_aldoni_custom_provider(self):
         """Test aldoni accepts custom provider names (OpenAI-compatible)."""
         with patch("A_agento.agordo.save_api_key", return_value=True), \
-             patch("A_agento.agordo.save_provider_config"), \
-             patch("A_agento.agordo.list_provider_configs", return_value=[]), \
-             patch("A_agento.agordo.set_default_provider"):
+             patch("A_agento.agordo.save_provider_config"):
             result = runner.invoke(
                 app,
                 ["agordi", "aldoni", "my-custom-endpoint", "--key", "test"],
@@ -148,6 +145,7 @@ class TestVidiCommand:
             "modelo": "gpt-4",
             "base_url": "https://api.openai.com/v1",
             "noto": "work",
+            "prioritato": 0,
             "kreita_je": "2024-01-01T00:00:00",
             "modifita_je": "2024-01-02T00:00:00",
         }
@@ -182,16 +180,17 @@ class TestModifiCommand:
         result = runner.invoke(app, ["agordi", "modifi", "nonexistent"])
         assert result.exit_code != 0
 
-    @patch("A_agento.data.provider_config.get_provider_config")
+    @patch("A_agento.agordo_crud._find_config")
     @patch("A_agento.agordo_crud.save_provider_config")
-    def test_modifi_update_base_url(self, mock_save_cfg, mock_get_cfg):
+    def test_modifi_update_base_url(self, mock_save_cfg, mock_find):
         """Test modifying base URL of an existing provider."""
-        mock_get_cfg.return_value = {
+        mock_find.return_value = {
             "provider": "openai",
             "profile": "default",
             "modelo": "gpt-4",
             "base_url": "https://old.endpoint/v1",
             "noto": "",
+            "prioritato": 0,
         }
 
         result = runner.invoke(
@@ -218,9 +217,8 @@ class TestForigiCommand:
 
     @patch("A_agento.agordo_crud._delete_provider_config", return_value=True)
     @patch("A_agento.agordo_crud._find_config")
-    @patch("A_agento.agordo_crud._maybe_reassign_default")
     def test_forigi_with_yes(
-        self, mock_reassign, mock_find, mock_del
+        self, mock_find, mock_del
     ):
         """Test deleting a provider with -y flag."""
         mock_find.return_value = {
@@ -241,9 +239,7 @@ class TestDeprecatedAliases:
     def test_slosilo_deprecated_works(self):
         """Test slosilo still works (calls aldoni under the hood)."""
         with patch("A_agento.agordo.save_api_key", return_value=True), \
-             patch("A_agento.agordo.save_provider_config"), \
-             patch("A_agento.agordo.list_provider_configs", return_value=[]), \
-             patch("A_agento.agordo.set_default_provider"):
+             patch("A_agento.agordo.save_provider_config"):
             result = runner.invoke(
                 app,
                 ["agordi", "slosilo", "openai", "--key", "test"],
@@ -253,9 +249,7 @@ class TestDeprecatedAliases:
     def test_sxlosilo_deprecated_works(self):
         """Test sxlosilo still works (calls aldoni under the hood)."""
         with patch("A_agento.agordo.save_api_key", return_value=True), \
-             patch("A_agento.agordo.save_provider_config"), \
-             patch("A_agento.agordo.list_provider_configs", return_value=[]), \
-             patch("A_agento.agordo.set_default_provider"):
+             patch("A_agento.agordo.save_provider_config"):
             result = runner.invoke(
                 app,
                 ["agordi", "sxlosilo", "openai", "--key", "test"],
@@ -263,8 +257,8 @@ class TestDeprecatedAliases:
             assert result.exit_code == 0
 
 
-class TestMontriCommand:
-    """Tests for `agordi ls` (formerly montri)."""
+class TestLsCommand:
+    """Tests for `agordi ls`."""
 
     def test_ls_shows_help(self):
         """Test ls subcommand shows help."""
@@ -273,10 +267,10 @@ class TestMontriCommand:
         assert "ls" in result.output.lower()
 
     @patch("A_agento.agordo.list_provider_configs")
-    @patch("A_agento.agordo.get_default_provider")
-    def test_ls_no_configs(self, mock_default, mock_list):
+    @patch("A_agento.provider_state.get_fallback_order")
+    def test_ls_no_configs(self, mock_order, mock_list):
         """Test ls when no providers configured."""
-        mock_default.return_value = "ollama"
+        mock_order.return_value = []
         mock_list.return_value = []
 
         result = runner.invoke(app, ["agordi", "ls"])
@@ -284,10 +278,10 @@ class TestMontriCommand:
         assert "Neniuj" in result.output or "No" in result.output
 
     @patch("A_agento.agordo.list_provider_configs")
-    @patch("A_agento.agordo.get_default_provider")
-    def test_ls_with_configs(self, mock_default, mock_list):
+    @patch("A_agento.provider_state.get_fallback_order")
+    def test_ls_with_configs(self, mock_order, mock_list):
         """Test ls with configured providers."""
-        mock_default.return_value = "openai"
+        mock_order.return_value = ["openai"]
         mock_list.return_value = [
             {
                 "provider": "openai",
@@ -295,6 +289,7 @@ class TestMontriCommand:
                 "modelo": "gpt-4",
                 "base_url": "",
                 "noto": "",
+                "prioritato": 0,
             }
         ]
 
@@ -319,7 +314,7 @@ class TestTestiCommand:
         mock_provider.generate.return_value = " OK "
         mock_get_provider.return_value = mock_provider
 
-        result = runner.invoke(app, ["agordi", "testi"])
+        result = runner.invoke(app, ["agordi", "testi", "--provizanto", "openai"])
         assert result.exit_code == 0
         assert "sukcese" in result.output or "successfully" in result.output
 
@@ -331,7 +326,7 @@ class TestTestiCommand:
         mock_provider.generate.return_value = "Hello world"
         mock_get_provider.return_value = mock_provider
 
-        result = runner.invoke(app, ["agordi", "testi"])
+        result = runner.invoke(app, ["agordi", "testi", "--provizanto", "openai"])
         assert result.exit_code == 0
 
     @patch("A_agento.agordo.get_provider")
@@ -342,7 +337,7 @@ class TestTestiCommand:
         mock_provider.generate.side_effect = ConnectionError("Connection refused")
         mock_get_provider.return_value = mock_provider
 
-        result = runner.invoke(app, ["agordi", "testi"])
+        result = runner.invoke(app, ["agordi", "testi", "--provizanto", "openai"])
         assert result.exit_code != 0
         assert "eraro" in result.output or "error" in result.output
 

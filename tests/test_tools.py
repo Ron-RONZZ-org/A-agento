@@ -55,10 +55,11 @@ class TestExecuteToolCall:
         from A_agento.tools import execute_tool_call
         from A.core.providers import ToolCall
 
-        tc = ToolCall(id="1", function={"name": "search_encik", "arguments": '{"query": "test"}'})
-        result = execute_tool_call(tc)
-        data = json.loads(result)
-        assert isinstance(data, list)
+        with patch("A_agento.tools._search_encik", return_value='[{"uuid": "abc", "titolo": "test"}]'):
+            tc = ToolCall(id="1", function={"name": "search_encik", "arguments": '{"query": "test"}'})
+            result = execute_tool_call(tc)
+            data = json.loads(result)
+            assert isinstance(data, list)
 
 
 class TestGenerateWithTools:

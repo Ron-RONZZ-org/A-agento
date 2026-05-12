@@ -63,6 +63,7 @@ _SCHEMA = {
             noto TEXT DEFAULT '',
             modelo TEXT DEFAULT '',
             base_url TEXT DEFAULT '',
+            prioritato INTEGER NOT NULL DEFAULT 0,
             kreita_je TEXT NOT NULL,
             modifita_je TEXT NOT NULL,
             UNIQUE(provider, profile)

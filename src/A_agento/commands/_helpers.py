@@ -1,4 +1,10 @@
-"""Shared helpers for A-agento command functions."""
+"""Shared helpers for A-agento command functions.
+
+Provider resolution varies by input:
+- None -> fallback order (A_agento.provider_state.get_provider_with_fallback)
+- Bare provider name -> A.core.ai.get_provider(provider_type)
+- UUID or provider:profile -> constructed from stored config + keyring key
+"""
 
 from __future__ import annotations
 
@@ -14,12 +20,13 @@ def get_provider_or_exit(
 ):
     """Get LLM provider with error handling.
 
-    Accepts three formats: bare provider name, provider:profile, or UUID.
+    Accepts three formats: None (fallback), bare provider name, or
+    UUID / provider:profile reference.
     """
     if not provider_ref:
-        from A.core.ai import get_provider as _gp
+        from A_agento.provider_state import get_provider_with_fallback
         try:
-            return _gp()
+            return get_provider_with_fallback()
         except ValueError as e:
             error(str(e))
             raise typer.Exit(1) from e

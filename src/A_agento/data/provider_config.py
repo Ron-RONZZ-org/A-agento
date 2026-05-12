@@ -23,6 +23,7 @@ PROVIDER_CONFIG_SCHEMA = {
             noto TEXT DEFAULT '',
             modelo TEXT DEFAULT '',
             base_url TEXT DEFAULT '',
+            prioritato INTEGER NOT NULL DEFAULT 0,
             kreita_je TEXT NOT NULL,
             modifita_je TEXT NOT NULL,
             UNIQUE(provider, profile)
@@ -45,8 +46,21 @@ def _ensure_uuid_column() -> None:
             db.execute("UPDATE provizanto_agordoj SET uuid = ? WHERE rowid = ?", (new_uuid, row["rowid"]))
 
 
-# Run migration on import
-_ensure_uuid_column()
+def _ensure_prioritato_column() -> None:
+    """Add prioritato column to existing tables that lack it (migration).
+    
+    Existing rows get prioritato assigned by kreita_je order
+    (oldest = highest priority / lowest number).
+    """
+    db = get_db()
+    cols = db.execute("PRAGMA table_info(provizanto_agordoj)")
+    col_names = {c["name"] for c in cols}
+    if "prioritato" not in col_names:
+        db.execute("ALTER TABLE provizanto_agordoj ADD COLUMN prioritato INTEGER NOT NULL DEFAULT 0")
+        # Assign priorities based on creation order (oldest first = highest priority)
+        rows = db.execute("SELECT uuid, kreita_je FROM provizanto_agordoj ORDER BY kreita_je ASC")
+        for i, row in enumerate(rows):
+            db.execute("UPDATE provizanto_agordoj SET prioritato = ? WHERE uuid = ?", (i, row["uuid"]))
 
 
 def save_provider_config(
@@ -55,6 +69,7 @@ def save_provider_config(
     noto: str = "",
     modelo: str = "",
     base_url: str = "",
+    prioritato: int | None = None,
 ) -> dict[str, Any]:
     """Save or update provider configuration metadata.
 
@@ -67,6 +82,9 @@ def save_provider_config(
         noto: User-friendly label
         modelo: Model name override
         base_url: Custom API base URL
+        prioritato: Priority (lower = tried first). If None on new entry,
+                    auto-assigns 0 (highest) and shifts existing by +1.
+                    If None on update, keeps existing value.
 
     Returns:
         Saved config dict
@@ -78,20 +96,26 @@ def save_provider_config(
 
     existing = get_provider_config(provider, profile)
     if existing:
+        if prioritato is None:
+            prioritato = existing.get("prioritato", 0)
         db.execute(
             """UPDATE provizanto_agordoj
-               SET noto = ?, modelo = ?, base_url = ?, modifita_je = ?
+               SET noto = ?, modelo = ?, base_url = ?, prioritato = ?, modifita_je = ?
                WHERE uuid = ?""",
-            (noto, modelo, base_url, now, existing["uuid"]),
+            (noto, modelo, base_url, prioritato, now, existing["uuid"]),
         )
-        result = {**existing, "noto": noto, "modelo": modelo, "base_url": base_url}
+        result = {**existing, "noto": noto, "modelo": modelo, "base_url": base_url, "prioritato": prioritato}
     else:
+        if prioritato is None:
+            # New entry without explicit priority: highest priority (0), shift existing
+            db.execute("UPDATE provizanto_agordoj SET prioritato = prioritato + 1")
+            prioritato = 0
         entry_uuid = str(uuid_mod.uuid4())
         db.execute(
             """INSERT INTO provizanto_agordoj
-               (uuid, provider, profile, noto, modelo, base_url, kreita_je, modifita_je)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (entry_uuid, provider, profile, noto, modelo, base_url, now, now),
+               (uuid, provider, profile, noto, modelo, base_url, prioritato, kreita_je, modifita_je)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (entry_uuid, provider, profile, noto, modelo, base_url, prioritato, now, now),
         )
         result = {
             "uuid": entry_uuid,
@@ -100,6 +124,7 @@ def save_provider_config(
             "noto": noto,
             "modelo": modelo,
             "base_url": base_url,
+            "prioritato": prioritato,
         }
 
     return result
@@ -142,14 +167,15 @@ def get_provider_config_by_uuid(uuid: str) -> dict[str, Any] | None:
 
 
 def list_provider_configs() -> list[dict[str, Any]]:
-    """List all provider configurations.
+    """List all provider configurations ordered by priority.
 
     Returns:
-        List of config dicts ordered by provider, profile
+        List of config dicts ordered by prioritato ASC, kreita_je DESC.
+        Lower prioritato = tried first in auto-fallback.
     """
     db = get_db()
     return db.execute(
-        "SELECT * FROM provizanto_agordoj ORDER BY provider, profile"
+        "SELECT * FROM provizanto_agordoj ORDER BY prioritato ASC, kreita_je DESC"
     )
 
 
@@ -194,6 +220,10 @@ def delete_provider_config(
         )
         return True
 
+
+# Run migrations on import
+_ensure_uuid_column()
+_ensure_prioritato_column()
 
 __all__ = [
     "PROVIDER_CONFIG_SCHEMA",

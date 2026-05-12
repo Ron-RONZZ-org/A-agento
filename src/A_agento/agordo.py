@@ -1,14 +1,14 @@
 """A-agento agordo — provider configuration commands.
 
-Sub-app for the `agordo` command group.
+Sub-app for the `agordi` command group.
 
 Commands (run via `agento agordi <command>`):
-- default: Set default LLM provider
+- default: Set default LLM provider (sets prioritato=0)
 - aldoni: Add API key for a provider
 - vidi: View single provider configuration
 - modifi: Update existing provider configuration
 - forigi: Delete provider configuration
-- ls: Show all configured providers
+- ls: Show all configured providers (in fallback order)
 - testi: Test provider connectivity
 """
 
@@ -20,10 +20,11 @@ import getpass
 import typer
 
 from A import tr_multi, info, error, success, warning
-from A.core.ai import get_provider, save_api_key, get_api_key, get_default_provider, set_default_provider
+from A.core.ai import get_provider, save_api_key, get_api_key
 from A_agento.data.provider_config import (
     save_provider_config,
     list_provider_configs,
+    find_config,
 )
 from A_agento.agordo_crud import vidi, modifi, forigi
 
@@ -57,10 +58,13 @@ def _validate_provider(provizanto: str) -> None:
         raise typer.Exit(1)
 
 
-def _get_provider_or_exit(provider_type: Optional[str] = None):
-    """Get LLM provider with error handling."""
+def _get_provider_for_test(provider_type: Optional[str] = None):
+    """Get LLM provider with error handling (for testi command)."""
     try:
-        return get_provider(provider_type)
+        if provider_type:
+            return get_provider(provider_type)
+        from A_agento.provider_state import get_provider_with_fallback
+        return get_provider_with_fallback()
     except ValueError as e:
         error(str(e))
         raise typer.Exit(1) from e
@@ -99,6 +103,10 @@ def aldoni(
         None, "--modelo", "-m",
         help=tr_multi("Modelo-nomo (ekz. 'gpt-4', 'deepseek-chat')", "Model name (e.g. 'gpt-4', 'deepseek-chat')", "Nom du modèle (ex. 'gpt-4', 'deepseek-chat')"),
     ),
+    prioritato: Optional[int] = typer.Option(
+        None, "--prioritato", "-p",
+        help=tr_multi("Prioritato (pli malalta = unue provita; implicite: 0 = plej alta)", "Priority (lower = tried first; default: 0 = highest)", "Priorité (plus bas = essayé en premier; défaut: 0 = plus haut)"),
+    ),
 ) -> None:
     """Add an API key for a provider. Stores key in system keyring, metadata in SQLite."""
     if provizanto == "ollama":
@@ -127,16 +135,8 @@ def aldoni(
         error(tr_multi("Ne povis konservi ŝlosilon en ŝlosilaron.", "Failed to save key to system keyring.", "Impossible d'enregistrer la clé dans le trousseau."))
         raise typer.Exit(1)
 
-    # Save metadata to SQLite
-    save_provider_config(provider=provizanto, profile=profile, noto=noto or "", modelo=modelo or "", base_url=base_url or "")
-
-    # First configured key sets as default
-    existing = list_provider_configs()
-    if len(existing) <= 1:
-        try:
-            set_default_provider(provizanto)
-        except ValueError:
-            pass
+    # Save metadata to SQLite (prioritato auto-assigned by save_provider_config)
+    save_provider_config(provider=provizanto, profile=profile, noto=noto or "", modelo=modelo or "", base_url=base_url or "", prioritato=prioritato)
 
     success(tr_multi(f"Ŝlosilo por {provizanto} konservita en ŝlosilaro.", f"API key for {provizanto} saved to system keyring.", f"Clé API pour {provizanto} enregistrée dans le trousseau."))
 
@@ -191,7 +191,7 @@ def sxlosilo_deprecated(
     aldoni(provizanto, key=key, base_url=base_url, noto=noto, modelo=modelo)
 
 
-# ── default — set default provider ────────────────────────────────────────
+# ── default — set default provider (sets prioritato=0) ────────────────────
 
 
 @agordo_app.command("default", help=tr_multi(
@@ -203,14 +203,29 @@ def default(
         help=tr_multi("Provizanto (huggingface/deepseek/openai/ollama)", "Provider (huggingface/deepseek/openai/ollama)", "Fournisseur (huggingface/deepseek/openai/ollama)"),
     ),
 ) -> None:
-    """Set the default LLM provider."""
+    """Set the default LLM provider by setting its priority to 0 (highest)."""
     _validate_provider(provizanto)
-    try:
-        set_default_provider(provizanto)
-        success(tr_multi(f"Implicitita provizanto: {provizanto}", f"Default provider: {provizanto}", f"Fournisseur par défaut: {provizanto}"))
-    except ValueError as e:
-        error(str(e))
-        raise typer.Exit(1) from e
+    # Find config for this provider
+    config = find_config(provizanto)
+    if not config:
+        warning(tr_multi(
+            f"Provizanto '{provizanto}' ne estas agordita. Uzu 'agordi aldoni' unue.",
+            f"Provider '{provizanto}' is not configured. Use 'agordi aldoni' first.",
+            f"Le fournisseur '{provizanto}' n'est pas configuré. Utilisez d'abord 'agordi aldoni'.",
+        ))
+        raise typer.Exit(1)
+
+    # Set prioritato=0 for this provider, shift others by +1
+    from A_agento.data.provider_config import get_db as _get_db
+    db = _get_db()
+    db.execute("UPDATE provizanto_agordoj SET prioritato = prioritato + 1 WHERE provider != ? OR profile != ?",
+               (config["provider"], config.get("profile", "default")))
+    db.execute("UPDATE provizanto_agordoj SET prioritato = 0 WHERE uuid = ?", (config["uuid"],))
+    success(tr_multi(
+        f"Implicitita provizanto: {provizanto} (prioritato 0)",
+        f"Default provider: {provizanto} (priority 0)",
+        f"Fournisseur par défaut: {provizanto} (priorité 0)",
+    ))
 
 
 # ── ls — list all providers ────────────────────────────────────────────────
@@ -220,20 +235,33 @@ def default(
     "Montri nunan agordon de provizantoj", "Show current provider configuration", "Afficher la configuration actuelle du fournisseur",
 ))
 def agordo_ls() -> None:
-    """Show current provider configuration. API keys masked to last 4 chars."""
+    """Show current provider configuration in fallback order."""
     from rich.console import Console
     from rich.table import Table
+    from A_agento.provider_state import get_fallback_order
 
     console = Console()
-    default = get_default_provider()
-    info(tr_multi(f"Implicitita provizanto: {default}", f"Default provider: {default}", f"Fournisseur par défaut: {default}"))
+    fallback = get_fallback_order()
+    if fallback:
+        info(tr_multi(
+            f"Falorodo: {' > '.join(fallback)}",
+            f"Fallback order: {' > '.join(fallback)}",
+            f"Ordre de secours: {' > '.join(fallback)}",
+        ))
+    else:
+        info(tr_multi(
+            "Neniuj provizantoj agorditaj. Uzu 'agordi aldoni' por aldoni ŝlosilon.",
+            "No providers configured. Use 'agordi aldoni' to add a key.",
+            "Aucun fournisseur configuré. Utilisez 'agordi aldoni' pour ajouter une clé.",
+        ))
+        return
 
     configs = list_provider_configs()
     if not configs:
-        info(tr_multi("Neniuj provizantoj agorditaj. Uzu 'agordi aldoni' por aldoni ŝlosilon.", "No providers configured. Use 'agordi aldoni' to add a key.", "Aucun fournisseur configuré. Utilisez 'agordi aldoni' pour ajouter une clé."))
         return
 
     table = Table(title=tr_multi('Provizantoj', 'Providers', 'Fournisseurs'))
+    table.add_column(tr_multi('Prior.', 'Pri.', 'Pri.'), style="red", no_wrap=True)
     table.add_column(tr_multi('UUID', 'UUID', 'UUID'), style="dim")
     table.add_column(tr_multi('Provizanto', 'Provider', 'Fournisseur'), style="cyan")
     table.add_column(tr_multi('Profilon', 'Profile', 'Profil'), style="dim")
@@ -245,10 +273,12 @@ def agordo_ls() -> None:
     for cfg in configs:
         prov = cfg["provider"]
         prof = cfg.get("profile", "default")
+        prio = cfg.get("prioritato", 0)
         api_key = get_api_key(provider=prov, profile=prof)
         masked = ("..." + api_key[-4:]) if api_key else tr_multi("mankas", "missing", "manquant")
         entry_uuid = cfg.get("uuid", "")[:8] or "-"
-        table.add_row(entry_uuid, prov, prof, masked, cfg.get("modelo", "") or "-", cfg.get("base_url", "") or "-", cfg.get("noto", "") or "-")
+        table.add_row(str(prio), entry_uuid, prov, prof, masked,
+                       cfg.get("modelo", "") or "-", cfg.get("base_url", "") or "-", cfg.get("noto", "") or "-")
 
     console.print(table)
 
@@ -267,12 +297,12 @@ def montri() -> None:
 ))
 def testi(
     provizanto: Optional[str] = typer.Option(
-        None, "--provizanto", "-p",
-        help=tr_multi("Provizanto por testi (implicitite: tiu implicita)", "Provider to test (default: the default provider)", "Fournisseur à tester (défaut: le fournisseur par défaut)"),
+        None, "--provizanto", "-P",
+        help=tr_multi("Provizanto por testi (implicitite: unua en falorodo)", "Provider to test (default: first in fallback order)", "Fournisseur à tester (défaut: premier dans l'ordre de secours)"),
     ),
 ) -> None:
     """Test provider connectivity with a minimal prompt."""
-    provider = _get_provider_or_exit(provizanto)
+    provider = _get_provider_for_test(provizanto)
     info(tr_multi(f"Testas {provider.name}...", f"Testing {provider.name}...", f"Test de {provider.name}..."))
     try:
         result = provider.generate("Reply with exactly one word: OK")

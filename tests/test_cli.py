@@ -21,9 +21,9 @@ class TestResumuCommand:
         assert result.exit_code == 0
         assert "resumu" in result.output.lower()
 
+    @patch("A_agento.provider_state.get_provider_with_fallback")
     @patch("A_agento.service.get_agent_service")
-    @patch("A.core.ai.get_provider")
-    def test_resumu_basic(self, mock_provider, mock_agent):
+    def test_resumu_basic(self, mock_agent, mock_provider):
         """Test resumu command basic execution."""
         # Setup mocks
         mock_provider_instance = Mock()
@@ -52,8 +52,11 @@ class TestResumuCommand:
         mock_agent_instance.summarize_emails.return_value = []
         mock_agent.return_value = mock_agent_instance
 
-        result = runner.invoke(app, ["resumu", "--provizanto", "test"])
-        assert result.exit_code == 0
+        # Also need to mock find_config for the explicit provider path
+        with patch("A_agento.data.provider_config.find_config", return_value={"provider": "test", "profile": "default"}):
+            with patch("A.core.ai.get_api_key", return_value="mock-key"):
+                result = runner.invoke(app, ["resumu", "--provizanto", "test"])
+                assert result.exit_code == 0
 
 
 class TestResponduCommand:

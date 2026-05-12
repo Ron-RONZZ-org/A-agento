@@ -31,8 +31,13 @@ python -c "from A.core.ai import save_api_key; save_api_key('your-openai-key')"
 ```
 
 ### 2. Set Default Provider
+Ollama needs no API key; for cloud providers, add your key first:
 ```bash
-python -c "from A.core.ai import set_default_provider; set_default_provider('ollama')"
+agento agordi aldoni openai --key sk-...
+```
+Then set as default (highest priority, tried first in auto-fallback):
+```bash
+agento agordi default ollama
 ```
 
 ### 3. Run Commands

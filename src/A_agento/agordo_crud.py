@@ -1,21 +1,19 @@
-from __future__ import annotations
-from A import confirm_action
 """A-agento agordo CRUD commands — provider configuration management.
 
 Commands: vidi, modifi, forigi (aldoni lives in agordo.py)
 """
 
+from __future__ import annotations
+from A import confirm_action
 
 from typing import List, Optional
 
 import typer
 
 from A import tr_multi, info, error, success, warning
-from A.core.ai import get_api_key, set_default_provider, get_default_provider
+from A.core.ai import get_api_key
 from A_agento.data.provider_config import (
     save_provider_config,
-    get_provider_config,
-    get_provider_config_by_uuid,
     list_provider_configs,
     delete_provider_config as _delete_provider_config,
     parse_ref as _parse_ref,
@@ -67,6 +65,7 @@ def vidi(
     table.add_column(tr_multi("Kampo", "Field", "Champ"), style="cyan")
     table.add_column(tr_multi("Valoro", "Value", "Valeur"), style="white")
 
+    table.add_row(tr_multi("Prioritato", "Priority", "Priorite"), str(config.get("prioritato", 0)))
     table.add_row(tr_multi("UUID", "UUID", "UUID"), config.get("uuid", "")[:8] or "-")
     table.add_row(tr_multi("Profilon", "Profile", "Profil"), profile)
     table.add_row(tr_multi("Sxlosilo", "Key", "Cle"), masked)
@@ -99,6 +98,8 @@ def modifi(
         help=tr_multi("Nova etikedo", "New label", "Nouvelle etiquette")),
     modelo: Optional[str] = typer.Option(None, "--modelo", "-m",
         help=tr_multi("Nova modelo-nomo", "New model name", "Nouveau nom du modele")),
+    prioritato: Optional[int] = typer.Option(None, "--prioritato", "-p",
+        help=tr_multi("Nova prioritato (pli malalta = unue provita)", "New priority (lower = tried first)", "Nouvelle priorite (plus bas = essaye en premier)")),
 ) -> None:
     """Modify an existing provider configuration.
 
@@ -107,7 +108,7 @@ def modifi(
 
     Examples:
         agento agordi modifi openai --key sk-new
-        agento agordi modifi openai:work --modelo gpt-4
+        agento agordi modifi openai:work --prioritato 0
     """
     config = _find_config(provizanto)
     if config is None:
@@ -126,7 +127,7 @@ def modifi(
         _save_key(key, provider=provider, profile=profile)
 
     # Interactive mode: if no flags given, prompt with current values
-    if not any([key, base_url, noto, modelo]):
+    if not any([key, base_url, noto, modelo, prioritato is not None]):
         info(tr_multi(
             f"Modifi agordojn por {provider}:{profile} (premu Enter por konservi):",
             f"Modify settings for {provider}:{profile} (Enter to keep):",
@@ -160,6 +161,7 @@ def modifi(
         noto=noto if noto is not None else config.get("noto", ""),
         modelo=modelo if modelo is not None else config.get("modelo", ""),
         base_url=base_url if base_url is not None else config.get("base_url", ""),
+        prioritato=prioritato,
     )
     success(tr_multi(
         f"Agordoj por {provider}:{profile} gxisdatigitaj.",
@@ -169,27 +171,6 @@ def modifi(
 
 
 # ── forigi — delete provider(s) ──────────────────────────────────────────
-
-
-def _maybe_reassign_default(deleted_provider: str) -> None:
-    """If the deleted provider was the default, reassign to a safe fallback."""
-    current_default = get_default_provider()
-    if deleted_provider != current_default:
-        return
-    remaining = list_provider_configs()
-    if not remaining:
-        set_default_provider("ollama")
-        info(tr_multi(
-            "Implicitita provizanto rekomencigita al ollama.",
-            "Default provider reset to ollama.",
-            "Fournisseur par defaut reinitialise a ollama.",
-        ))
-    else:
-        warning(tr_multi(
-            "La implicita provizanto estis forigita. Uzu 'agordi default' por agordi novan.",
-            "The default provider was deleted. Use 'agordi default' to set a new one.",
-            "Le fournisseur par defaut a ete supprime. Utilisez 'agordi default' pour en definir un nouveau.",
-        ))
 
 
 def _delete_one(ref: str, keyring: bool) -> bool:
@@ -202,7 +183,6 @@ def _delete_one(ref: str, keyring: bool) -> bool:
     Returns:
         True if deleted, False if not found.
     """
-    uuid, provider, profile = _parse_ref(ref)
     config = _find_config(ref)
     if config is None:
         return False
@@ -222,7 +202,6 @@ def _delete_one(ref: str, keyring: bool) -> bool:
         from A.core.ai import save_api_key
         save_api_key("", provider=provider_name, profile=profile_name)
 
-    _maybe_reassign_default(provider_name)
     return True
 
 

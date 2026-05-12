@@ -30,11 +30,12 @@ class TestAgentService:
 
         with patch.object(service, "list_recent_emails", return_value=sample_emails):
             with patch("A_agento.service.summarization_mixin.get_lien_service", return_value=None):
-                summaries = service.summarize_emails(mock_provider, limit=10, unread_only=False)
+                with patch.object(service, "_check_email_accounts", return_value=True):
+                    summaries = service.summarize_emails(mock_provider, limit=10, unread_only=False)
 
-                assert len(summaries) == 1
-                assert summaries[0].sender == "alice@example.com"
-                assert summaries[0].subject == "Test Meeting"
+                    assert len(summaries) == 1
+                    assert summaries[0].sender == "alice@example.com"
+                    assert summaries[0].subject == "Test Meeting"
 
     def test_summarize_emails_checks_accounts(self, mock_provider):
         """Test summarization checks for accounts first."""
