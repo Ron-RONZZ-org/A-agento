@@ -59,7 +59,10 @@ def _looks_like_raw_json(content: str) -> bool:
 def _clean_enc_output(content: str) -> str:
     """Clean up LLM-generated .enc content by stripping markdown artifacts.
 
-    - Removes leading/trailing code fences (```enc, ```, ```toml, etc.)
+    - Removes any text before the first code fence (```), then strips
+      the fence itself
+    - Removes any text after the last code fence, then strips the fence
+    - Handles ```, ```enc, ```toml, etc.
     - Strips leading # title comments (tolerated by parser but not desired style)
 
     Args:
@@ -77,9 +80,32 @@ def _clean_enc_output(content: str) -> str:
     if _looks_like_raw_json(content):
         raise ValueError("LLM returned raw tool output instead of generated content")
 
-    # Strip leading and trailing code fences
-    content = re.sub(r'^```\w*\s*\n', '', content)
-    content = re.sub(r'\n```\s*$', '', content)
+    # Strip code fences anywhere in the content.
+    # Find the first ``` and last ``` and extract content between them.
+    fence_pattern = r'```\w*'
+    fences = list(re.finditer(fence_pattern, content))
+    if len(fences) >= 2:
+        first = fences[0].start()
+        last = fences[-1].end()
+        # Extract content between first fence's end and last fence's start
+        after_first = content[first:].split('\n', 1)
+        before_last = content[:last].rsplit('\n', 1)
+        if len(after_first) > 1 and len(before_last) > 1:
+            start_content = first + len(after_first[0]) + 1  # skip first fence line
+            end_content = last - len(before_last[-1]) - 1     # before last fence line
+            if start_content < end_content:
+                content = content[start_content:end_content]
+            else:
+                content = content[end_content:start_content] if end_content < start_content else ""
+    elif len(fences) == 1:
+        # Single fence: strip everything on its line and after/before
+        f = fences[0]
+        if f.start() == 0:
+            # Opening fence at start: remove first line
+            content = '\n'.join(content.split('\n')[1:])
+        else:
+            # Closing fence: remove from fence to end
+            content = content[:f.start()].rstrip('\n')
 
     # Strip leading # title comments (tolerated by parser but not desired style)
     lines = content.split('\n')

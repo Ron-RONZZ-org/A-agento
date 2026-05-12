@@ -39,7 +39,8 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
 5. STYLE for `semantika`
   - syntax inspired by wikidata-flavoured SPARQL
   - e.g., `int wdt:P1082 890` signifies that the entry subject has property wdt:P1082 (population) of value of 890
-  - {{type}}: `int`,`str` or `bool`
+  - {{type}}: `int`, `float` `str` or `bool`
+    - for int/float, use 4 significant digits, with scientific notation (e.g., `3.0E8`) where appropriate
   - {{wikidata-property}}: same as in in-line links, use `wikidata_property_id("keyword")` MCP tool to get Wikidata property ID
   - **by PREFERENCE, numerical values like population, land area, etc. should be in semantika, not difino**
 
