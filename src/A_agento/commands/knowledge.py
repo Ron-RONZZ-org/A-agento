@@ -132,6 +132,8 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
     Returns:
         The final path the file was saved to, or None if cancelled.
     """
+    import typer as _typer
+
     while True:
         if path.exists() and not confirm_action(
             tr_multi(
@@ -141,17 +143,12 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
             ),
             default=False,
         ):
-            import sys
-
             prompt_msg = tr_multi(
                 "Alternativa vojo (malplena por nuligi): ",
                 "Alternative path (empty to cancel): ",
                 "Chemin alternatif (vide pour annuler) : ",
             )
-            if sys.stdout is not None:
-                sys.stdout.write(prompt_msg)
-                sys.stdout.flush()
-            alt = sys.stdin.readline().strip() if hasattr(sys.stdin, "readline") else ""
+            alt = _typer.prompt(prompt_msg, default="").strip()
             if not alt:
                 info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
                 return None
