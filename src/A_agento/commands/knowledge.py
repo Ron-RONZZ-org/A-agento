@@ -13,7 +13,7 @@ from typing import Optional
 
 import typer
 
-from A import tr, tr_multi, info, error, success
+from A import tr, tr_multi, info, error, success, copy_to_clipboard
 from A_agento.commands._helpers import get_provider_or_exit
 from A_agento.tools import generate_with_tools, ENCIK_TOOLS
 from A_agento.prompt_loader import load_prompt
@@ -117,7 +117,7 @@ def _clean_enc_output(content: str) -> str:
     return '\n'.join(lines).strip()
 
 
-def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
+def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
     """Save generated content to a file, showing confirmation.
 
     If the file already exists and user declines overwrite,
@@ -128,6 +128,9 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
         path: Output file path
         content: Content to write
         titolo: Optional title for user feedback
+
+    Returns:
+        The final path the file was saved to, or None if cancelled.
     """
     while True:
         if path.exists() and not confirm_action(
@@ -151,7 +154,7 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
             alt = sys.stdin.readline().strip() if hasattr(sys.stdin, "readline") else ""
             if not alt:
                 info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
-                return
+                return None
             path = Path(alt).expanduser().resolve()
             path.parent.mkdir(parents=True, exist_ok=True)
             continue
@@ -164,6 +167,7 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
                 f"Enregistré dans {path}",
             )
         )
+        return path
         return
 
 
@@ -209,11 +213,21 @@ def generi(
     konservi: Optional[Path] = typer.Option(
         None,
         "--konservi",
-        "-k",
+        "-K",
         help=tr_multi(
             "Dosiero por konservi la rezulton (ekz: eligo.enc)",  # eo
             "File path to save the result (e.g. output.enc)",  # en
             "Chemin du fichier pour sauvegarder le resultat (ex: sortie.enc)",  # fr
+        ),
+    ),
+    kopii: bool = typer.Option(
+        False,
+        "--kopii",
+        "-k",
+        help=tr_multi(
+            "Kopii la vojon de la konservita dosiero al tondujo (bezonas --konservi)",  # eo
+            "Copy the saved file path to clipboard (requires --konservi)",  # en
+            "Copier le chemin du fichier sauvegardé dans le presse-papiers (nécessite --konservi)",  # fr
         ),
     ),
     verbose: bool = typer.Option(
@@ -327,7 +341,9 @@ def generi(
 
     # Save to file if requested (human-in-the-loop: user reviews first)
     if konservi:
-        _save_to_file(konservi, content.strip(), titolo or prompto)
+        final_path = _save_to_file(konservi, content.strip(), titolo or prompto)
+        if kopii and final_path is not None:
+            copy_to_clipboard(str(final_path))
 
 
 __all__ = [
