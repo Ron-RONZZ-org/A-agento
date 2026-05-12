@@ -261,12 +261,12 @@ def agordo_ls() -> None:
         return
 
     #
-    # Greyscale-accessible palette: Prior. (red = emphasis),
-    # all others use default (white) for maximum readability.
-    # Avoid dim/blue/magenta — they are near-invisible in grayscale.
+    # Greyscale-accessible: no per-column colors.  The table is already
+    # readable with headers and borders alone.  Colors add visual noise
+    # without improving readability.
     #
     table = Table(title=tr_multi('Provizantoj', 'Providers', 'Fournisseurs'))
-    table.add_column(tr_multi('Prior.', 'Pri.', 'Pri.'), style="red", no_wrap=True)
+    table.add_column(tr_multi('Prior.', 'Pri.', 'Pri.'), no_wrap=True)
     table.add_column(tr_multi('UUID', 'UUID', 'UUID'))
     table.add_column(tr_multi('Provizanto', 'Provider', 'Fournisseur'))
     table.add_column(tr_multi('Profilon', 'Profile', 'Profil'))

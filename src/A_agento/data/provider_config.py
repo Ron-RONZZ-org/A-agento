@@ -73,6 +73,9 @@ def save_provider_config(
 ) -> dict[str, Any]:
     """Save or update provider configuration metadata.
 
+    Provider name is normalized to lowercase for consistent DB and
+    keyring naming.
+
     Stores non-secret provider metadata (label, model, base URL).
     API keys are stored separately in the system keyring.
 
@@ -89,6 +92,7 @@ def save_provider_config(
     Returns:
         Saved config dict
     """
+    provider = provider.lower()
     from datetime import datetime, timezone
 
     db = get_db()
