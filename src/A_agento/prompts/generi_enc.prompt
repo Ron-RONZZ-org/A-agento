@@ -12,7 +12,7 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
    - point 2
    """
   semantika="""
-  {type} {wikidata-property} {value}
+  {{type}} {{wikidata-property}} {{value}}
   """
 
 
@@ -39,8 +39,8 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
 5. STYLE for `semantika`
   - syntax inspired by wikidata-flavoured SPARQL
   - e.g., `int wdt:P1082 890` signifies that the entry subject has property wdt:P1082 (population) of value of 890
-  - {type}: `int`,`str` or `bool`
-  - {wikidata-property}: same as in in-line links, use `wikidata_property_id("keyword")` MCP tool to get Wikidata property ID
+  - {{type}}: `int`,`str` or `bool`
+  - {{wikidata-property}}: same as in in-line links, use `wikidata_property_id("keyword")` MCP tool to get Wikidata property ID
   - **by PREFERENCE, numerical values like population, land area, etc. should be in semantika, not difino**
 
 
