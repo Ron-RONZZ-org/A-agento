@@ -62,8 +62,8 @@ def vidi(
     table = Table(title=tr_multi(
         f"Provizanto: {provider}", f"Provider: {provider}", f"Fournisseur : {provider}",
     ))
-    table.add_column(tr_multi("Kampo", "Field", "Champ"), style="cyan")
-    table.add_column(tr_multi("Valoro", "Value", "Valeur"), style="white")
+    table.add_column(tr_multi("Kampo", "Field", "Champ"))
+    table.add_column(tr_multi("Valoro", "Value", "Valeur"))
 
     table.add_row(tr_multi("Prioritato", "Priority", "Priorite"), str(config.get("prioritato", 0)))
     table.add_row(tr_multi("UUID", "UUID", "UUID"), config.get("uuid", "")[:8] or "-")

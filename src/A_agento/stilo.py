@@ -89,10 +89,10 @@ def stilo_ls() -> None:
         return
 
     table = Table(title=tr_multi('Stilo-specimoj', 'Style samples', 'Echantillons de style'))
-    table.add_column("UUID", style="cyan")
-    table.add_column("Tipo", style="magenta")
-    table.add_column("Enhavo", style="white")
-    table.add_column("Aktiva", style="green")
+    table.add_column("UUID")
+    table.add_column("Tipo")
+    table.add_column("Enhavo")
+    table.add_column("Aktiva")
 
     for s in samples:
         table.add_row(

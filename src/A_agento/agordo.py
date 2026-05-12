@@ -260,15 +260,20 @@ def agordo_ls() -> None:
     if not configs:
         return
 
+    #
+    # Greyscale-accessible palette: Prior. (red = emphasis),
+    # all others use default (white) for maximum readability.
+    # Avoid dim/blue/magenta — they are near-invisible in grayscale.
+    #
     table = Table(title=tr_multi('Provizantoj', 'Providers', 'Fournisseurs'))
     table.add_column(tr_multi('Prior.', 'Pri.', 'Pri.'), style="red", no_wrap=True)
-    table.add_column(tr_multi('UUID', 'UUID', 'UUID'), style="dim")
-    table.add_column(tr_multi('Provizanto', 'Provider', 'Fournisseur'), style="cyan")
-    table.add_column(tr_multi('Profilon', 'Profile', 'Profil'), style="dim")
-    table.add_column(tr_multi("Sxlosilo", "Key", "Cle"), style="yellow")
-    table.add_column(tr_multi('Modelo', 'Model', 'Modele'), style="green")
-    table.add_column(tr_multi('Baza URL', 'Base URL', 'URL de base'), style="blue")
-    table.add_column(tr_multi('Etikedo', 'Label', 'Etiquette'), style="magenta")
+    table.add_column(tr_multi('UUID', 'UUID', 'UUID'))
+    table.add_column(tr_multi('Provizanto', 'Provider', 'Fournisseur'))
+    table.add_column(tr_multi('Profilon', 'Profile', 'Profil'))
+    table.add_column(tr_multi("Sxlosilo", "Key", "Cle"))
+    table.add_column(tr_multi('Modelo', 'Model', 'Modele'))
+    table.add_column(tr_multi('Baza URL', 'Base URL', 'URL de base'))
+    table.add_column(tr_multi('Etikedo', 'Label', 'Etiquette'))
 
     for cfg in configs:
         prov = cfg["provider"]

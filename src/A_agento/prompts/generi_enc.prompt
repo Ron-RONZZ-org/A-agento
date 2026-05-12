@@ -11,6 +11,10 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
    - point 1
    - point 2
    """
+  semantika="""
+  {type} {wikidata-property} {value}
+  """
+
 
 2. SYNTAX RULES
    - Identical terms: terminologio.(eo,fr,en)="Same Name" (literal, not a format parameter)
@@ -28,11 +32,17 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
      Example: `- Institucio de eduko: [ETH Zurich](#UUID, wdt:P69)`
      NOT: `- [Institucio de eduko](#, wdt:P69): ETH Zurich`
 
-4. WORKFLOW (use MCP tools):
+4. WORKFLOW for creatin in-line links in `difino.{{lang}}` (use MCP tools):
    - `search_encik("term")` -- get UUID by title
    - `wikidata_property_id("keyword")` -- get Wikidata property ID
    - Every link needs UUID + PROP
+5. STYLE for `semantika`
+  - syntax inspired by wikidata-flavoured SPARQL
+  - e.g., `int wdt:P1082 890` signifies that the entry subject has property wdt:P1082 (population) of value of 890
+  - {type}: `int`,`str` or `bool`
+  - {wikidata-property}: same as in in-line links, use `wikidata_property_id("keyword")` MCP tool to get Wikidata property ID
+  - **by PREFERENCE, numerical values like population, land area, etc. should be in semantika, not difino**
 
-{title_line}
+
 Topic: {prompto}
-Generate only the .enc content, no extra explanation:
+Generate only the .enc content. no extra explanation.

@@ -82,7 +82,7 @@ def resumu(
     # Display summaries
     console = Console()
     table = Table(show_header=True, header_style="bold")
-    table.add_column("#", style="dim", width=4)
+    table.add_column("#", width=4)
     table.add_column(tr_multi('Subjekto', 'Subject', 'Sujet'))  # Subject
     table.add_column(tr_multi('Sendinto', 'From', 'De'))  # From
     table.add_column(tr_multi('Resumo', 'Summary', 'Resume'))  # Summary
