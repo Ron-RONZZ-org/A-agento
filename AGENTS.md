@@ -36,6 +36,7 @@ src/A_agento/
 ├── cli.py                 # Typer app (resumu, respondi, agu, generi)
 ├── agordo.py              # Provider config sub-app (default, aldoni, ls, testi)
 ├── stilo.py               # Style sample sub-app (aldoni, listo, forigu, aktiva)
+├── provider_state.py      # Fallback order management (prioritato-based)
 ├── registration.py        # AI sub-app factories for cross-module injection
 ├── service.py             # AgentService orchestration
 ├── prompts.py             # Prompt templates
@@ -48,7 +49,7 @@ src/A_agento/
 └── data/
     ├── __init__.py
     ├── storage.py          # SQLite for agent metadata + history + styloj
-    └── provider_config.py  # Provider metadata storage (non-secret config)
+    └── provider_config.py  # Provider metadata storage (non-secret config, prioritato)
 ```
 
 ### Cross-Module AI Injection
@@ -80,11 +81,31 @@ All commands accepting `--provizanto` support three formats:
 
 | Format | Example | Behavior |
 |--------|---------|----------|
-| Provider name | `--provizanto openai` | Uses default profile key |
+| None (omitted) | — | Falls back to prioritato order (see below) |
+| Provider name | `--provizanto openai` | Uses that provider type directly |
 | Provider:profile | `--provizanto "openai:work"` | Uses named profile key |
 | Config UUID | `--provizanto a1b2c3d4-...` | Uses specific config by UUID |
 
 Discover available UUIDs and profiles via `agento agordi ls`.
+
+### Auto-Fallback (prioritato)
+
+When `--provizanto` is omitted, A-agento tries configured providers in
+**prioritato** order (lower `prioritato` = tried first). New providers
+are auto-assigned `prioritato=0` (highest priority), shifting existing
+providers by +1 — so the most recently added provider is tried first.
+
+Ordering is visible in `agento agordi ls`:
+```
+Falorodo: deepseek > openai > ollama
+```
+
+Use `--prioritato/-p` on `aldoni` or `modifi` for explicit ordering:
+```bash
+agento agordi modifi openai --prioritato 5
+```
+
+Use `agordi default <provider>` to set a provider to `prioritato=0`.
 
 ### Sub-app Groups
 
