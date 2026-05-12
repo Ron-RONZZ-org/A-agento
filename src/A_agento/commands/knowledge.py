@@ -120,30 +120,50 @@ def _clean_enc_output(content: str) -> str:
 def _save_to_file(path: Path, content: str, titolo: str = "") -> None:
     """Save generated content to a file, showing confirmation.
 
+    If the file already exists and user declines overwrite,
+    prompts for an alternative path. Loops until a valid path
+    is provided or user cancels (Ctrl+C / empty input).
+
     Args:
         path: Output file path
         content: Content to write
         titolo: Optional title for user feedback
     """
-    if path.exists() and not confirm_action(
-        tr_multi(
-            f"Dosiero {path} jam ekzistas. Anstataŭigi?",
-            f"File {path} already exists. Overwrite?",
-            f"Le fichier {path} existe déjà. Remplacer ?",
-        ),
-        default=False,
-    ):
-        info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
-        return
+    import typer
 
-    path.write_text(content, encoding="utf-8")
-    success(
-        tr_multi(
-            f"Konservita al {path}",
-            f"Saved to {path}",
-            f"Enregistré dans {path}",
+    while True:
+        if path.exists() and not confirm_action(
+            tr_multi(
+                f"Dosiero {path} jam ekzistas. Anstataŭigi?",
+                f"File {path} already exists. Overwrite?",
+                f"Le fichier {path} existe déjà. Remplacer ?",
+            ),
+            default=False,
+        ):
+            alt = typer.prompt(
+                tr_multi(
+                    "Alternativa vojo (malplena por nuligi):",
+                    "Alternative path (empty to cancel):",
+                    "Chemin alternatif (vide pour annuler) :",
+                ),
+                default="",
+            )
+            if not alt.strip():
+                info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
+                return
+            path = Path(alt.strip()).expanduser().resolve()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            continue  # re-check the new path
+
+        path.write_text(content, encoding="utf-8")
+        success(
+            tr_multi(
+                f"Konservita al {path}",
+                f"Saved to {path}",
+                f"Enregistré dans {path}",
+            )
         )
-    )
+        return
 
 
 def generi(
