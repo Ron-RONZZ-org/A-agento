@@ -28,7 +28,7 @@ def get_fallback_order() -> list[str]:
     seen: set[str] = set()
     ordered: list[str] = []
     for c in configs:
-        pt = c.get("provider", "")
+        pt = c.get("provider", "").lower()
         if pt and pt not in seen:
             seen.add(pt)
             ordered.append(pt)
