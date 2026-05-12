@@ -144,8 +144,9 @@ def _search_encik(query: str) -> str:
     """Search encik DB by keyword/title.
 
     Uses FTS5 for relevance-ranked results when available, falls back to
-    LIKE search. If the query is a 4-digit year and no results are found,
-    automatically creates a year entry and returns its UUID.
+    LIKE search. If the query is a 4-digit year, short-circuits to
+    auto-create the year entry without hitting DB search (the year entry
+    is what the LLM needs, not arbitrary entries mentioning that year).
 
     Args:
         query: Search query string
@@ -154,6 +155,13 @@ def _search_encik(query: str) -> str:
         JSON with matching entries (title, uuid, preview)
     """
     try:
+        # If query is a year, short-circuit — create/retrieve year entry directly
+        clean = query.strip()
+        year = _parse_year(clean)
+        if year is not None:
+            bce = clean.lower().endswith("bce") or clean.lower().endswith("bc") or "a.k.e" in clean.lower() or "a.k." in clean.lower()
+            return _ensure_year_entry(str(year), bce=bce)
+
         from A_encik.data.storage import get_db as encik_db
         from A_encik.data.storage import ENCIK_FTS_CONFIG as fts_cfg
         db = encik_db()
@@ -170,30 +178,7 @@ def _search_encik(query: str) -> str:
                 (f"%{query}%", f"%{query}%", f"{query}%"),
             )
         if results:
-            # Check if query is a year — ensure year entry exists even if
-            # unrelated entries matched (e.g., "1945" matching "UN" entry text)
-            clean = query.strip()
-            year = _parse_year(clean)
-            if year is not None:
-                # Create or get the year entry
-                bce = clean.lower().endswith("bce") or clean.lower().endswith("bc") or "a.k.e" in clean.lower() or "a.k." in clean.lower()
-                year_result = _ensure_year_entry(str(year), bce=bce)
-                year_data = json.loads(year_result)
-                if "uuid" in year_data:
-                    # Fetch the year entry and add it as the first result
-                    year_entry = db.execute_one(
-                        "SELECT uuid, titolo, substr(difinio, 1, 200) as preview FROM encik WHERE uuid = ?",
-                        (year_data["uuid"],),
-                    )
-                    if year_entry:
-                        results.insert(0, year_entry)
             return json.dumps(results, ensure_ascii=False, default=str)
-
-        # No results: if query is a year (CE or BCE), auto-create the entry
-        clean = query.strip()
-        year = _parse_year(clean)
-        if year is not None:
-            return _ensure_year_entry(str(year), bce=clean.lower().endswith("bce") or clean.lower().endswith("bc") or "a.k.e" in clean.lower() or "a.k." in clean.lower())
 
         return json.dumps({"message": f"No entries found for '{query}'"})
     except ImportError:
