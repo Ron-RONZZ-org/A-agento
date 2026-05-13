@@ -132,6 +132,8 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
     Returns:
         The final path the file was saved to, or None if cancelled.
     """
+    import sys as _sys
+
     while True:
         if path.exists() and not confirm_action(
             tr_multi(
@@ -154,7 +156,17 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
             path.parent.mkdir(parents=True, exist_ok=True)
             continue
 
-        path.write_text(content, encoding="utf-8")
+        # Attempt to write file with detailed failure reporting
+        _sys.stderr.write(f"[DEBUG] Writing to {path}, content len={len(content)}\n")
+        _sys.stderr.flush()
+        try:
+            path.write_text(content, encoding="utf-8")
+        except Exception as e:
+            _sys.stderr.write(f"[DEBUG] write_text failed: {type(e).__name__}: {e}\n")
+            _sys.stderr.flush()
+            raise
+        _sys.stderr.write(f"[DEBUG] write_text succeeded\n")
+        _sys.stderr.flush()
         success(
             tr_multi(
                 f"Konservita al {path}",
