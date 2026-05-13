@@ -194,7 +194,9 @@ def _search_fts(db, query: str, fts_cfg) -> list[dict] | None:
             return None
         fts_query = " OR ".join(f"{t}*" for t in terms[:5])
 
-        sql = f"""SELECT e.uuid, e.titolo, substr(e.difinio, 1, 200) as preview
+        # Note: e.titolo is still in the schema (transition period),
+        # but terminologio is the canonical title source
+        sql = f"""SELECT e.uuid, e.terminologio, substr(e.difinio, 1, 200) as preview
                   FROM encik e
                   JOIN {fts_cfg.fts_table} f ON e.rowid = f.rowid
                   WHERE {fts_cfg.fts_table} MATCH ?
@@ -237,9 +239,9 @@ def _search_encik(query: str) -> str:
         if not results:
             # Fallback: LIKE search
             results = db.execute(
-                """SELECT uuid, titolo, substr(difinio, 1, 200) as preview
-                   FROM encik WHERE titolo LIKE ? OR difinio LIKE ?
-                   ORDER BY CASE WHEN titolo LIKE ? THEN 0 ELSE 1 END, titolo
+                """SELECT uuid, terminologio, substr(difinio, 1, 200) as preview
+                   FROM encik WHERE terminologio LIKE ? OR difinio LIKE ?
+                   ORDER BY CASE WHEN terminologio LIKE ? THEN 0 ELSE 1 END
                    LIMIT 8""",
                 (f"%{query}%", f"%{query}%", f"{query}%"),
             )
