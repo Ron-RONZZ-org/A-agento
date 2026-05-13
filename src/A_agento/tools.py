@@ -380,11 +380,11 @@ def _ensure_year_entry(year: str, bce: bool = False) -> str:
         century_titolo = f"{century_num}a jarcento{era_long} (kalendara jarcento)"
         century = svc.find_by_titolo(century_titolo)
 
-        result: dict[str, str] = {"uuid": entry["uuid"]}
+        result: dict[str, str] = {"uuid": entry["uuid"][:8]}
         if decade:
-            result["decade_uuid"] = decade["uuid"]
+            result["decade_uuid"] = decade["uuid"][:8]
         if century:
-            result["century_uuid"] = century["uuid"]
+            result["century_uuid"] = century["uuid"][:8]
 
         return json.dumps(result, ensure_ascii=False, default=str)
     except ImportError:
@@ -419,9 +419,9 @@ def _ensure_decade_entry(decade: str, bce: bool = False) -> str:
         century_num = (dv - 1) // 100 + 1
         century_titolo = f"{century_num}a jarcento{era_long} (kalendara jarcento)"
         century = svc.find_by_titolo(century_titolo)
-        result: dict[str, str] = {"uuid": entry["uuid"]}
+        result: dict[str, str] = {"uuid": entry["uuid"][:8]}
         if century:
-            result["century_uuid"] = century["uuid"]
+            result["century_uuid"] = century["uuid"][:8]
         return json.dumps(result, ensure_ascii=False, default=str)
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
@@ -448,7 +448,7 @@ def _ensure_century_entry(century: str, bce: bool = False) -> str:
         from A_encik.service import get_service
         svc = get_service()
         entry = svc.ensure_century(int(c), bce=bce)
-        return json.dumps({"uuid": entry["uuid"]}, ensure_ascii=False, default=str)
+        return json.dumps({"uuid": entry["uuid"][:8]}, ensure_ascii=False, default=str)
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
     except ValueError as e:
