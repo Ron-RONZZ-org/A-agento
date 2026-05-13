@@ -175,7 +175,6 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
             )
         )
         return path
-        return
 
 
 def generi(
@@ -348,9 +347,22 @@ def generi(
 
     # Save to file if requested (human-in-the-loop: user reviews first)
     if konservi:
-        final_path = _save_to_file(konservi, content.strip(), titolo or prompto)
-        if kopii and final_path is not None:
-            copy_to_clipboard(str(final_path))
+        try:
+            final_path = _save_to_file(konservi, content.strip(), titolo or prompto)
+            if kopii and final_path is not None:
+                copy_to_clipboard(str(final_path))
+        except Exception as e:
+            import sys as _sys
+            _sys.stderr.write(f"[SAVE_ERROR] {type(e).__name__}: {e}\n")
+            _sys.stderr.flush()
+            error(
+                tr_multi(
+                    f"Konservado malsukcesis: {e}",
+                    f"Saving failed: {e}",
+                    f"Enregistrement échoué : {e}",
+                )
+            )
+            raise typer.Exit(1) from e
 
 
 __all__ = [
