@@ -23,13 +23,17 @@ SEARCH_ENCIK_TOOL = {
     "type": "function",
     "function": {
         "name": "search_encik",
-        "description": "Search the personal encik knowledge base for entries related to a query. Returns title, UUID, and preview.",
+        "description": "Search the personal encik knowledge base for entries related to a query. "
+                       "Returns title, UUID, and preview. "
+                       "For 4-digit year queries (e.g. '1879'), auto-creates the year, decade, "
+                       "and century entries — response includes year_uuid, decade_uuid, century_uuid.",
         "parameters": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Search query (title or keyword)",
+                    "description": "Search query (title or keyword). "
+                                   "4-digit numbers auto-create time entries.",
                 }
             },
             "required": ["query"],
@@ -77,8 +81,59 @@ WIKIDATA_PROPERTY_TOOL = {
     },
 }
 
+ENSURE_DECADE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "ensure_decade",
+        "description": "Create or retrieve a calendar decade entry and its parent century. "
+                       "Returns decade UUID and century UUID.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "decade": {
+                    "type": "string",
+                    "description": "Decade start year, must be multiple of 10 (e.g. '1780' for the 1780s)",
+                },
+                "bce": {
+                    "type": "boolean",
+                    "description": "True for BCE (before Common Era)",
+                    "default": False,
+                },
+            },
+            "required": ["decade"],
+        },
+    },
+}
+
+ENSURE_CENTURY_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "ensure_century",
+        "description": "Create or retrieve a calendar century entry. "
+                       "Returns century UUID.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "century": {
+                    "type": "string",
+                    "description": "Century number (e.g. '18' for the 18th century)",
+                },
+                "bce": {
+                    "type": "boolean",
+                    "description": "True for BCE (before Common Era)",
+                    "default": False,
+                },
+            },
+            "required": ["century"],
+        },
+    },
+}
+
 # Combined tools for encik generation
-ENCIK_TOOLS = [SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL, WIKIDATA_PROPERTY_TOOL]
+ENCIK_TOOLS = [
+    SEARCH_ENCIK_TOOL, GET_ENTRY_TOOL, WIKIDATA_PROPERTY_TOOL,
+    ENSURE_DECADE_TOOL, ENSURE_CENTURY_TOOL,
+]
 
 
 # ── Tool execution ───────────────────────────────────────────────────────────
@@ -106,6 +161,16 @@ def execute_tool_call(tool_call: ToolCall) -> str:
         return _get_encik_entry(args.get("uuid", ""))
     elif name == "wikidata_property_id":
         return _lookup_wikidata_property(args.get("query", ""))
+    elif name == "ensure_decade":
+        return _ensure_decade_entry(
+            args.get("decade", ""),
+            bce=bool(args.get("bce", False)),
+        )
+    elif name == "ensure_century":
+        return _ensure_century_entry(
+            args.get("century", ""),
+            bce=bool(args.get("bce", False)),
+        )
     else:
         return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -144,9 +209,10 @@ def _search_encik(query: str) -> str:
     """Search encik DB by keyword/title.
 
     Uses FTS5 for relevance-ranked results when available, falls back to
-    LIKE search. If the query is a 4-digit year, short-circuits to
-    auto-create the year entry without hitting DB search (the year entry
-    is what the LLM needs, not arbitrary entries mentioning that year).
+    LIKE search. If the query is a 1-4 digit number, short-circuits to
+    auto-create the year entry (and its decade/century parents) without
+    hitting DB search. Response includes ``decade_uuid`` and
+    ``century_uuid`` when applicable.
 
     Args:
         query: Search query string
@@ -279,14 +345,17 @@ def _parse_year(text: str) -> int | None:
 def _ensure_year_entry(year: str, bce: bool = False) -> str:
     """Create or retrieve calendar time entries for a year.
 
-    Delegates to A-encik's centralized ``EncikService.ensure_year()``.
-    Cascading creation: century → decade → year.
+    Delegates to A-encik's centralized ``EncikService.ensure_year()``,
+    which cascades: century → decade → year.
+
+    Returns ALL three UUIDs so the LLM can reference the year, its
+    decade, or its century as needed.
 
     Args:
-        year: Four-digit year string (e.g. "1879")
+        year: Year string (1-4 digits, e.g. "1879")
 
     Returns:
-        JSON with uuid of the year entry
+        JSON with ``year_uuid``, ``decade_uuid``, ``century_uuid``
     """
     year_str = year.strip()
     if not year_str.isdigit() or not (1 <= len(year_str) <= 4):
@@ -295,7 +364,90 @@ def _ensure_year_entry(year: str, bce: bool = False) -> str:
     try:
         from A_encik.service import get_service
         svc = get_service()
-        entry = svc.ensure_year(int(year_str), bce=bce)
+        y = int(year_str)
+        era_short, era_long = (" a.K.E.", " (a.K.E.)") if bce else ("", "")
+
+        # ensure_year creates century → decade → year cascade
+        entry = svc.ensure_year(y, bce=bce)
+
+        # Look up decade and century by their known titolo patterns
+        decade_start = (y // 10) * 10
+        century_num = (y - 1) // 100 + 1
+
+        decade_titolo = f"{decade_start}a jardeko{era_long} (kalendara jardeko)"
+        decade = svc.find_by_titolo(decade_titolo)
+
+        century_titolo = f"{century_num}a jarcento{era_long} (kalendara jarcento)"
+        century = svc.find_by_titolo(century_titolo)
+
+        result: dict[str, str] = {"uuid": entry["uuid"]}
+        if decade:
+            result["decade_uuid"] = decade["uuid"]
+        if century:
+            result["century_uuid"] = century["uuid"]
+
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except ImportError:
+        return json.dumps({"error": "A-encik is not installed"})
+    except ValueError as e:
+        return json.dumps({"error": str(e)})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+def _ensure_decade_entry(decade: str, bce: bool = False) -> str:
+    """Create or retrieve a decade entry and its parent century.
+
+    Args:
+        decade: Decade start year (multiple of 10, e.g. "1780")
+
+    Returns:
+        JSON with ``uuid``, ``century_uuid``
+    """
+    d = decade.strip()
+    if not d.isdigit():
+        return json.dumps({"error": f"Invalid decade: '{d}'. Must be a number."})
+    dv = int(d)
+    if dv % 10 != 0:
+        return json.dumps({"error": f"Invalid decade: '{d}'. Must be a multiple of 10 (e.g. 1780)."})
+
+    try:
+        from A_encik.service import get_service
+        svc = get_service()
+        entry = svc.ensure_decade(dv, bce=bce)
+        era_short, era_long = (" a.K.E.", " (a.K.E.)") if bce else ("", "")
+        century_num = (dv - 1) // 100 + 1
+        century_titolo = f"{century_num}a jarcento{era_long} (kalendara jarcento)"
+        century = svc.find_by_titolo(century_titolo)
+        result: dict[str, str] = {"uuid": entry["uuid"]}
+        if century:
+            result["century_uuid"] = century["uuid"]
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except ImportError:
+        return json.dumps({"error": "A-encik is not installed"})
+    except ValueError as e:
+        return json.dumps({"error": str(e)})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+def _ensure_century_entry(century: str, bce: bool = False) -> str:
+    """Create or retrieve a century entry.
+
+    Args:
+        century: Century number (e.g. "18" for the 18th century)
+
+    Returns:
+        JSON with ``uuid``
+    """
+    c = century.strip()
+    if not c.isdigit():
+        return json.dumps({"error": f"Invalid century: '{c}'. Must be a number."})
+
+    try:
+        from A_encik.service import get_service
+        svc = get_service()
+        entry = svc.ensure_century(int(c), bce=bce)
         return json.dumps({"uuid": entry["uuid"]}, ensure_ascii=False, default=str)
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
@@ -611,4 +763,6 @@ __all__ = [
     "ENCIK_TOOLS",
     "execute_tool_call",
     "generate_with_tools",
+    "ENSURE_DECADE_TOOL",
+    "ENSURE_CENTURY_TOOL",
 ]
