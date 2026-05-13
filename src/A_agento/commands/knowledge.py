@@ -98,13 +98,16 @@ def _clean_enc_output(content: str) -> str:
             else:
                 content = content[end_content:start_content] if end_content < start_content else ""
     elif len(fences) == 1:
-        # Single fence: strip everything on its line and after/before
+        # Single fence: determine if opening (has lang tag like ```enc) or closing (just ```)
         f = fences[0]
-        if f.start() == 0:
-            # Opening fence at start: remove first line
-            content = '\n'.join(content.split('\n')[1:])
+        fence_text = f.group(0)
+        is_opening = len(fence_text) > 3  # ```enc > ``` (more than just backticks)
+        after_fence = content[f.end():]   # everything after the fence line
+        if is_opening:
+            # Opening fence with lang tag: remove everything up to fence, keep rest
+            content = after_fence.lstrip('\n')
         else:
-            # Closing fence: remove from fence to end
+            # Closing fence with no lang tag: remove from fence to end
             content = content[:f.start()].rstrip('\n')
 
     # Strip leading # title comments (tolerated by parser but not desired style)
