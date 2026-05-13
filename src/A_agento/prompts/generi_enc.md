@@ -52,40 +52,32 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
        - `terminologio="Rusio"...difino.eo="...[882](#46a982d2, wdt:P571) :Kieva Regno...` X
          - This inline semantic link suggests that Rusio (terminologio) was founded in 882, which is wrong. 882 is the founding year of Kieva Regno, but NOT modern Russia. The entry's terminologio is about Rusio, so all semantic links must have Rusio as subject. The correct usage here would be simply [882](#46a982d2), without any explicit semantic links, which correctly suggests that "882" is a significant year in Russian history, but NOT directly semantically linked to modern Russia ("Rusio")
 
-## WORKFLOW for creatin inline semantic links in `difino.{{lang}}` (use MCP tools):
-- UUID: (compulsory): `search_encik("term")` -- get UUID by title
-  - for :
-- semantic-property predicate (best endeavour): `wikidata_property_id("keyword")` -- get Wikidata property ID
- - semantic-property predicate should be included where there exists an appropriate semantic arc linking value to semantic subject (terminologio). If the semantic object is only loosely related to the semantic subject (terminologio) so no explicit semantic arc is appropriate, it can be omitted
+## use MCP tools to create inline semantic links in `difino.{{lang}}`
 
-## STYLE for `semantika`
-- syntax inspired by wikidata-flavoured SPARQL
+- UUID: (compulsory): `search_encik("term")` -- get UUID by title
+  - if not found, try alternative search terms
+  - if always not found, leave blank, do NOT assume
+- semantic arc (best endeavour): `wikidata_property_id("keyword")` -- get Wikidata property ID
+ - semantic arc should be included where there exists an appropriate semantic arc linking value to semantic subject (terminologio). If the semantic object is only loosely related to the semantic subject (terminologio) so no explicit semantic arc is appropriate, it can be omitted
+
+### special case: TIME ENTRIES (years, decades, centuries)
+
+- you should always create a inline semantic link when refering to time.
+  - UUID: required
+  - wdt:xxx: optional. can be omitted if there is no appropriate semantic arc found via `wikidata_property_id("keyword")`
+- MCP tool usage
+  - Years, decades, and centuries are auto-created on first lookup via `search_encik`.
+  - The response includes all three UUIDs so you can reference any of them.
+    - `search_encik("1879")` → year entry, returns `uuid` (year), `decade_uuid`, `century_uuid`
+    - `ensure_decade("1780")` → decade entry only, returns `uuid` (decade), `century_uuid`
+    - `ensure_century("18")` → century entry only, returns `uuid` (century)
+
+
+## `semantika` syntax: inspired by wikidata-flavoured SPARQL
 - e.g., `int wdt:P1082 890` signifies that the entry subject has property wdt:P1082 (population) of value of 890
 - {{type}}: `int`, `float` `str` or `bool`
   - for int/float, use 4 significant digits, with scientific notation (e.g., `3.0E8`) where appropriate
 - {{wikidata-property}}: same as in inline semantic links, use `wikidata_property_id("keyword")` MCP tool to get Wikidata property ID
-
-## TIME ENTRIES (years, decades, centuries)
-
-Years, decades, and centuries are auto-created on first lookup via `search_encik`.
-The response includes all three UUIDs so you can reference any of them.
-
-- `search_encik("1879")` → year entry, returns `uuid` (year), `decade_uuid`, `century_uuid`
-- `ensure_decade("1780")` → decade entry only, returns `uuid` (decade), `century_uuid`
-- `ensure_century("18")` → century entry only, returns `uuid` (century)
-
-Once obtained, use the UUID in inline links or ligilo:
-  `[1789](#year-uuid, wdt:P580)` — year as point in time
-  `[1780s](#decade-uuid, wdt:P361)` — decade as part of century
-  `[18-a jc.](#century-uuid, wdt:P361)` — century as containing decade
-
-Semantika example for year:
-```enc
-  semantika="""
-  str wdt:P580 "1789"
-  int wdt:P571 1789
-  """
-```
 
 ## **`semantika` is for numerical values and literal string, whereas `difino` is for explanatory text**
 - numerical values like population, land area, etc. should be in `semantika`, not `difino`
