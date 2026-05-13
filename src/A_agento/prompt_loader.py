@@ -1,12 +1,12 @@
 """Prompt loader with file-based override support.
 
 Three-tier loading:
-1. ~/.config/A/agento/prompts/<name>.prompt — user override
-2. src/A_agento/prompts/<name>.prompt — packaged default
+1. ~/.config/A/agento/prompts/<name>.md — user override
+2. src/A_agento/prompts/<name>.md — packaged default
 3. Embedded string in code — last resort fallback
 
-Users can copy .prompt files to ~/.config/A/agento/prompts/ and edit.
-Prompt engineers edit the .prompt files in the repo (no Python code).
+Users can copy .md files to ~/.config/A/agento/prompts/ and edit.
+Prompt engineers edit the .md files in the repo (no Python code).
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ def load_prompt(name: str, default: str = "") -> str:
     """Load a prompt by name, with three-tier fallback.
 
     Priority:
-    1. ~/.config/A/agento/prompts/<name>.prompt — user override
-    2. src/A_agento/prompts/<name>.prompt — packaged default
+    1. ~/.config/A/agento/prompts/<name>.md — user override
+    2. src/A_agento/prompts/<name>.md — packaged default
     3. Embedded `default` string — last resort
 
     Results are cached in memory after first load.
@@ -44,14 +44,14 @@ def load_prompt(name: str, default: str = "") -> str:
         return _CACHE[name]
 
     # 1. User override
-    path = _USER_PROMPT_DIR / f"{name}.prompt"
+    path = _USER_PROMPT_DIR / f"{name}.md"
     if path.exists():
         content = path.read_text(encoding="utf-8")
         _CACHE[name] = content
         return content
 
     # 2. Packaged default
-    pkg_path = _PKG_PROMPT_DIR / f"{name}.prompt"
+    pkg_path = _PKG_PROMPT_DIR / f"{name}.md"
     if pkg_path.exists():
         content = pkg_path.read_text(encoding="utf-8")
         _CACHE[name] = content

@@ -25,8 +25,8 @@ from A_agento.prompt_loader import load_prompt
 def _get_format_prompt(formato: str) -> str:
     """Load a format prompt with three-tier fallback.
 
-    1. ~/.config/A/agento/prompts/generi_<formato>.prompt (user override)
-    2. src/A_agento/prompts/generi_<formato>.prompt (packaged default)
+    1. ~/.config/A/agento/prompts/generi_<formato>.md (user override)
+    2. src/A_agento/prompts/generi_<formato>.md (packaged default)
     3. Embedded string (last resort)
     """
     return load_prompt(f"generi_{formato}")
