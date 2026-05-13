@@ -251,49 +251,6 @@ def _lookup_wikidata_property(query: str) -> str:
 # ── Year entry management ────────────────────────────────────────────────────
 
 
-# Fixed UUIDs for calendar time entries (from user's encik DB)
-_YEAR_JARO_UUID = "592e5797"
-_YEAR_JARDEKO_UUID = "82064f60"
-_YEAR_JARCENTO_UUID = "8677ddbd"
-_YEAR_GREGORIA_UUID = "caaf64dc"
-
-
-def _ensure_or_create(
-    titolo: str,
-    terminologio_eo: str,
-    difino_eo: str,
-    superklaso: list[str] | None = None,
-) -> str:
-    """Find an entry by title or create it. Returns UUID.
-
-    Args:
-        titolo: Entry title
-        terminologio_eo: Esperanto term
-        difino_eo: Definition in Esperanto
-        superklaso: Optional parent UUIDs
-
-    Returns:
-        UUID string
-    """
-    from A_encik.service import get_service
-    svc = get_service()
-
-    existing = svc.find_by_titolo(titolo)
-    if existing:
-        return existing["uuid"]
-
-    data = {
-        "titolo": titolo,
-        "terminologio": {"eo": terminologio_eo},
-        "difinoj": {"eo": difino_eo},
-    }
-    if superklaso:
-        data["superklaso"] = superklaso
-
-    entry = svc.create(data)
-    return entry["uuid"]
-
-
 def _parse_year(text: str) -> int | None:
     """Parse a year string (CE or BCE) into a positive integer.
 
@@ -307,7 +264,6 @@ def _parse_year(text: str) -> int | None:
     Returns the numeric year (always positive), or None if not a valid year.
     """
     t = text.strip()
-    # BCE suffixes
     bce_suffixes = ("bce", "bc", "a.k.e.", "a.k.", "a.K.E.", "a.K.")
     is_bce = any(t.lower().endswith(s.lower()) for s in bce_suffixes)
     if is_bce:
@@ -315,7 +271,6 @@ def _parse_year(text: str) -> int | None:
             if t.lower().endswith(s.lower()):
                 t = t[:-len(s)].strip()
                 break
-    # Now t should be just digits
     if t.isdigit() and 1 <= len(t) <= 4:
         return int(t)
     return None
@@ -324,9 +279,8 @@ def _parse_year(text: str) -> int | None:
 def _ensure_year_entry(year: str, bce: bool = False) -> str:
     """Create or retrieve calendar time entries for a year.
 
+    Delegates to A-encik's centralized ``EncikService.ensure_year()``.
     Cascading creation: century → decade → year.
-    Each level sets the previous as superklaso (parent).
-    If entries already exist, returns the existing UUID.
 
     Args:
         year: Four-digit year string (e.g. "1879")
@@ -339,43 +293,14 @@ def _ensure_year_entry(year: str, bce: bool = False) -> str:
         return json.dumps({"error": f"Invalid year: '{year_str}'. Must be 1-4 digits."})
 
     try:
-        y = int(year_str)
-        era_suffix = " a.K.E." if bce else ""
-        era_suffix_long = " (a.K.E.)" if bce else ""
-
-        # For BCE centuries/decades, the math is:
-        # 44 BCE → century (44-1)//100+1 = 1 → "1a jarcento a.K.E."
-        # 3000 BCE → century (3000-1)//100+1 = 30 → "30a jarcento a.K.E."
-        # Same formula works for both CE and BCE
-        century_num = (y - 1) // 100 + 1
-        decade_start = (y // 10) * 10
-
-        # 1. Century
-        century_title = f"{century_num}a jarcento{era_suffix_long} (kalendara jarcento)"
-        century_term = f"{century_num}a jarcento{era_suffix_long} (kalendara jarcento)"
-        century_difino = f"[jarcento](#{_YEAR_JARCENTO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
-        century_uuid = _ensure_or_create(century_title, century_term, century_difino)
-
-        # 2. Decade
-        decade_label = f"{decade_start}a jardeko{era_suffix_long}"
-        decade_title = f"{decade_label} (kalendara jardeko)"
-        decade_term = f"{decade_label} (kalendara jardeko)"
-        decade_difino = f"[jardeko](#{_YEAR_JARDEKO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
-        decade_uuid = _ensure_or_create(decade_title, decade_term, decade_difino,
-                                        superklaso=[century_uuid])
-
-        # 3. Year
-        year_label = f"{year_str}{era_suffix}"
-        year_title = f"{year_label} (kalendara jaro)"
-        year_term = f"{year_label} (kalendara jaro)"
-        year_difino = f"[jaro](#{_YEAR_JARO_UUID}, rdf:type) de la [Gregoria kalendaro](#{_YEAR_GREGORIA_UUID}, wdt:P361)"
-        year_uuid = _ensure_or_create(year_title, year_term, year_difino,
-                                      superklaso=[decade_uuid])
-
-        return json.dumps({"uuid": year_uuid}, ensure_ascii=False, default=str)
-
+        from A_encik.service import get_service
+        svc = get_service()
+        entry = svc.ensure_year(int(year_str), bce=bce)
+        return json.dumps({"uuid": entry["uuid"]}, ensure_ascii=False, default=str)
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
+    except ValueError as e:
+        return json.dumps({"error": str(e)})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
