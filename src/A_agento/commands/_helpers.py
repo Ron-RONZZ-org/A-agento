@@ -22,11 +22,21 @@ def get_provider_or_exit(
 
     Accepts three formats: None (fallback), bare provider name, or
     UUID / provider:profile reference.
+
+    When auto-selected (None), shows the chosen provider to the user.
     """
     if not provider_ref:
         from A_agento.provider_state import get_provider_with_fallback
         try:
-            return get_provider_with_fallback()
+            provider = get_provider_with_fallback()
+            info(
+                tr_multi(
+                    f"Uzas {provider.name}:{provider.model}",
+                    f"Using {provider.name}:{provider.model}",
+                    f"Utilise {provider.name}:{provider.model}",
+                )
+            )
+            return provider
         except ValueError as e:
             error(str(e))
             raise typer.Exit(1) from e
