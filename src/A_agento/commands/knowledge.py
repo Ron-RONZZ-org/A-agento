@@ -350,6 +350,11 @@ def generi(
 
     # Save to file if requested (human-in-the-loop: user reviews first)
     if konservi:
+        # Auto-append file extension if missing
+        ext_map = {"txt": ".txt", "md": ".md", "json": ".json", "enc": ".enc"}
+        suffix = ext_map.get(formato, "")
+        if suffix and not konservi.suffix:
+            konservi = konservi.with_suffix(suffix)
         try:
             final_path = _save_to_file(konservi, content.strip(), titolo or prompto)
             if kopii and final_path is not None:
