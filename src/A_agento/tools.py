@@ -246,6 +246,10 @@ def _search_encik(query: str) -> str:
                 (f"%{query}%", f"%{query}%", f"{query}%"),
             )
         if results:
+            # Truncate UUIDs to 8 chars so LLM uses prefixes, not full UUIDs
+            for r in results:
+                if "uuid" in r and len(r["uuid"]) > 8:
+                    r["uuid"] = r["uuid"][:8]
             return json.dumps(results, ensure_ascii=False, default=str)
 
         return json.dumps({"message": f"No entries found for '{query}'"})
@@ -276,7 +280,7 @@ def _get_encik_entry(uuid: str) -> str:
             entry = row_to_dict(entry)
             enc_text = entry_to_enc(entry)
             result = {
-                "uuid": entry["uuid"],
+                "uuid": entry["uuid"][:8],
                 "titolo": entry["titolo"],
                 "enc_format": enc_text[:2000],
             }

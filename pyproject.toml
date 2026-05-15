@@ -36,6 +36,9 @@ encik = "A_agento.registration:get_encik_ai_app"
 [tool.hatch.build.targets.wheel]
 packages = ["src/A_agento"]
 
+[tool.uv.sources]
+a-core = { path = "../A-core" }
+
 [tool.poetry]
 name = "A-agento"
 version = "0.1.0"
