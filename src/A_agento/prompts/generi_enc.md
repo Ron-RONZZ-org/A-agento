@@ -55,8 +55,9 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
 ### use MCP tools to create inline semantic links in `difino.{{lang}}`
 
 - UUID: (compulsory): `search_encik("term")` -- get UUID by title
-  - if not found, try alternative search terms
-  - if always not found, leave blank, do NOT assume
+  - if not found, try alternative search terms (at most 2 attempts)
+  - if still not found after 2 attempts, stop searching and leave blank
+  - do NOT keep searching — use your existing knowledge for the entry content
 - semantic arc (best endeavour): `wikidata_property_id("keyword")` -- get Wikidata property ID
  - semantic arc should be included where there exists an appropriate semantic arc linking value to semantic subject (terminologio). If the semantic object is only loosely related to the semantic subject (terminologio) so no explicit semantic arc is appropriate, it can be omitted
 
@@ -89,6 +90,13 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
 - `terminologio` should be in 3 default languages: `eo`, `fr`, `en` + the original language of the concept, IF not among `eo`, `fr`, `en`
   - `e.g.`, for an entry on Spain, we would include the 3 default + the local language `es`
 - `difino` should be in `eo`
+
+## CRITICAL: Search limit
+You have a maximum of 3 search calls per entity. After 3 unfruitful searches,
+stop searching and generate the entry using your existing knowledge.
+Omit inline semantic links for entities you couldn't find.
+If you have searched 5+ times total across all entities and still lack data,
+stop all searching and generate the entry now with what you know.
 
 Topic: {prompto}
 Generate directly the .enc content. No word padding. No extra explanation.

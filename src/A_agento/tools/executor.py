@@ -158,6 +158,8 @@ def generate_with_tools(
 
         _hint("Press 'x' at any time to pause and type a correction")
 
+    raw_output_retries = 0
+
     for turn in range(max_turns):
         response = provider.chat(messages, tools=tools)
 
@@ -189,17 +191,24 @@ def generate_with_tools(
 
         if not response.tool_calls:
             if is_raw_tool_output(response.content):
+                raw_output_retries += 1
                 if verbose:
-                    _v("\n[WARNING] Raw tool output detected, retrying...")
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "That was tool result data. Now generate the actual content "
-                            "in the requested format, no extra explanation, no code fences."
-                        ),
-                    }
-                )
+                    _v(f"\n[WARNING] Raw tool output detected (attempt {raw_output_retries}), retrying...")
+
+                # Escalating retry messages
+                retry_messages = [
+                    # 1st attempt — polite hint
+                    "That was tool result data. Now generate the actual content "
+                    "in the requested format, no extra explanation, no code fences.",
+                    # 2nd attempt — stronger hint
+                    "You are outputting raw search results. Generate the final content now. "
+                    "Use your existing knowledge. Omit links for unknown entities.",
+                    # 3rd+ attempt — direct command
+                    "STOP searching. Generate the output now using what you know. "
+                    "No more tools. Output the result directly.",
+                ]
+                idx = min(raw_output_retries - 1, len(retry_messages) - 1)
+                messages.append({"role": "user", "content": retry_messages[idx]})
                 continue
             return response.content
 
@@ -233,8 +242,42 @@ def generate_with_tools(
                 }
             )
 
-    # Exhausted max_turns — return whatever we have
-    return response.content if response and response.content else ""
+    # ── Exhausted max_turns: force final generation without tools ──
+    if verbose:
+        from A.utils import info as _v
+        _v(f"\n[WARNING] max_turns={max_turns} exhausted. Forcing final generation...")
+
+    content = ""
+    if response and response.tool_calls:
+        # Last response had tool_calls — force a final answer without tool access
+        messages.append({
+            "role": "user",
+            "content": (
+                "You have exhausted all search attempts. "
+                "Now generate the final output immediately using your existing knowledge. "
+                "Do not search again. Do not call any tools."
+            ),
+        })
+        final_response = provider.chat(messages, tools=None)
+        if final_response and final_response.content:
+            content = final_response.content
+    elif response and response.content:
+        content = response.content
+
+    # Safety net: if content is still empty or raw tool output, try one more forceful call
+    if not content or is_raw_tool_output(content):
+        messages.append({
+            "role": "user",
+            "content": (
+                "You must generate the final content now. "
+                "No more tool calls. Output the result directly."
+            ),
+        })
+        final_response = provider.chat(messages, tools=None)
+        if final_response and final_response.content:
+            content = final_response.content
+
+    return content
 
 
 def _fallback_with_context(

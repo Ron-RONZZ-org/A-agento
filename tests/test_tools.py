@@ -92,6 +92,177 @@ class TestGenerateWithTools:
         result = generate_with_tools(mock_provider, [{"role": "user", "content": "hello"}])
         assert result == "Fallback response"
 
+    def test_max_turns_with_tool_calls_forces_final_gen(self):
+        """When max_turns exhausted with tool_calls, force final generation without tools."""
+        from A_agento.tools import generate_with_tools
+        from A.core.providers import ToolCall
+
+        mock_provider = Mock()
+        mock_provider.supports_tools = True
+
+        # Response with tool_calls (never generating final content on its own)
+        tool_response = Mock()
+        tool_response.content = None
+        tool_response.tool_calls = [
+            ToolCall(id="1", type="function", function={
+                "name": "search_encik", "arguments": '{"query": "test"}'
+            }),
+        ]
+        tool_response.reasoning_content = None
+
+        # Final forced generation response (after max_turns exhausted)
+        final_response = Mock()
+        final_response.content = "terminologio.eo = \"test\""
+        final_response.tool_calls = None
+
+        # max_turns=2: both turns return tool_calls, then force final gen
+        mock_provider.chat.side_effect = [
+            tool_response,   # turn 0 → tool_calls → process → continue
+            tool_response,   # turn 1 → tool_calls → max_turns exhausted
+            final_response,  # forced final gen without tools
+        ]
+
+        result = generate_with_tools(
+            mock_provider, [{"role": "user", "content": "test"}],
+            tools=[], max_turns=2,
+        )
+        assert result == 'terminologio.eo = "test"'
+        # Verify the forced call used tools=None
+        last_call_kwargs = mock_provider.chat.call_args_list[-1][1]
+        assert last_call_kwargs.get("tools") is None
+
+    def test_raw_output_retry_escalates(self):
+        """Test raw output retry sends escalating messages (not just repeat)."""
+        from A_agento.tools import generate_with_tools
+
+        mock_provider = Mock()
+        mock_provider.supports_tools = True
+
+        raw_response = Mock()
+        raw_response.content = '[{"uuid": "abc", "titolo": "test"}]'
+        raw_response.tool_calls = None
+
+        final_response = Mock()
+        final_response.content = "terminologio.eo = \"generated\""
+        final_response.tool_calls = None
+
+        # Three raw outputs (escalating through all 3 messages), then final
+        mock_provider.chat.side_effect = [raw_response, raw_response, raw_response, final_response]
+
+        result = generate_with_tools(
+            mock_provider, [{"role": "user", "content": "test"}],
+            tools=[], max_turns=5,
+        )
+        assert result == 'terminologio.eo = "generated"'
+        # Verify that escalating messages were sent (the last user message should be forceful)
+        calls = mock_provider.chat.call_args_list
+        user_msgs = [
+            msg["content"]
+            for call in calls
+            for msg in call[0][0]
+            if msg["role"] == "user"
+        ]
+        # After 3 raw output detections, the retry message should escalate to "STOP"
+        stop_msgs = [m for m in user_msgs if m.startswith("STOP")]
+        assert len(stop_msgs) > 0
+        # Verify messages are different (escalating, not identical repeats)
+        unique_retry_msgs = set(
+            m for m in user_msgs
+            if m != "test"  # exclude original user prompt
+        )
+        assert len(unique_retry_msgs) >= 2  # at least 2 distinct retry messages
+
+    def test_max_turns_exhausted_raw_output_falls_through(self):
+        """Combined: max_turns exhausted + raw output → safety net forces final gen."""
+        from A_agento.tools import generate_with_tools
+        from A.core.providers import ToolCall
+
+        mock_provider = Mock()
+        mock_provider.supports_tools = True
+
+        tool_response = Mock()
+        tool_response.content = None
+        tool_response.tool_calls = [
+            ToolCall(id="1", type="function", function={
+                "name": "search_encik", "arguments": '{"query": "test"}'
+            }),
+        ]
+        tool_response.reasoning_content = None
+
+        raw_response = Mock()
+        raw_response.content = '[{"uuid": "abc"}]'
+        raw_response.tool_calls = None
+
+        final_response = Mock()
+        final_response.content = "terminologio.eo = \"final\""
+        final_response.tool_calls = None
+
+        # max_turns=2: turn 0 → tool_calls, turn 1 → raw → retry → loop ends
+        mock_provider.chat.side_effect = [
+            tool_response,   # turn 0 → tool_calls → process → continue
+            raw_response,    # turn 1 → raw output → retry → loop ends
+            final_response,  # safety net: force final gen without tools
+        ]
+
+        result = generate_with_tools(
+            mock_provider, [{"role": "user", "content": "test"}],
+            tools=[], max_turns=2,
+        )
+        assert result == 'terminologio.eo = "final"'
+        last_call_kwargs = mock_provider.chat.call_args_list[-1][1]
+        assert last_call_kwargs.get("tools") is None
+
+    def test_empty_content_at_max_turns(self):
+        """Empty content after max_turns → safety net forces final gen."""
+        from A_agento.tools import generate_with_tools
+        from A.core.providers import ToolCall
+
+        mock_provider = Mock()
+        mock_provider.supports_tools = True
+
+        tool_response = Mock()
+        tool_response.content = None
+        tool_response.tool_calls = [
+            ToolCall(id="1", type="function", function={
+                "name": "search_encik", "arguments": '{"query": "test"}'
+            }),
+        ]
+        tool_response.reasoning_content = None
+
+        empty_response = Mock()
+        empty_response.content = ""
+        empty_response.tool_calls = None
+
+        final_response = Mock()
+        final_response.content = "Generated fallback content"
+        final_response.tool_calls = None
+
+        # max_turns=2: turn 0 → tool_calls, turn 1 → empty content
+        mock_provider.chat.side_effect = [
+            tool_response,   # turn 0 → tool_calls → process → continue
+            empty_response,  # turn 1 → empty → not raw (but empty) → return? no... 
+        ]
+
+        # Wait: empty content is caught by is_raw_tool_output("") which returns True
+        # So turn 1: raw_output_retries=1, retry message appended, continue
+        # But continue tries turn 2, max_turns=2 → loop ends
+        # After loop: response = empty_response
+        # response.tool_calls is None → content = ""
+        # Safety net: not content → True → force final gen
+        mock_provider.chat.side_effect = [
+            tool_response,   # turn 0 → tool_calls
+            empty_response,  # turn 1 → empty → retry → loop ends
+            final_response,  # safety net: force final gen
+        ]
+
+        result = generate_with_tools(
+            mock_provider, [{"role": "user", "content": "test"}],
+            tools=[], max_turns=2,
+        )
+        assert result == "Generated fallback content"
+        last_call_kwargs = mock_provider.chat.call_args_list[-1][1]
+        assert last_call_kwargs.get("tools") is None
+
 
 class TestFallbackWithContext:
     """Tests for _fallback_with_context."""
