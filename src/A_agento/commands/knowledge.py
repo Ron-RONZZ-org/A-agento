@@ -32,65 +32,6 @@ def _get_format_prompt(formato: str) -> str:
     return load_prompt(f"generi_{formato}")
 
 
-def _get_enc_examples(topic: str, limit: int = 2) -> str:
-    """Retrieve relevant encik entries as few-shot .enc examples (RAG).
-
-    Uses FTS5 full-text search to find entries semantically related to
-    the user's topic, then converts them to .enc format. This gives
-    the LLM relevant, real-world examples from the user's own knowledge
-    base to guide structure and style.
-
-    Args:
-        topic: User's topic/prompt to search for relevant examples
-        limit: Max number of example entries (default 2)
-
-    Returns:
-        Formatted .enc examples string, or empty string if encik
-        unavailable or no entries found.
-    """
-    try:
-        from A_encik.data.storage import get_db as encik_db
-        from A_encik.data.storage import row_to_dict, ENCIK_FTS_CONFIG
-        from A_encik.enc_format import entry_to_enc
-
-        db = encik_db()
-
-        # FTS5 relevance-ranked search on the topic
-        import re as _re
-        terms = _re.findall(r"[a-zA-Z0-9\']+", topic)
-        if not terms:
-            return ""
-        fts_query = " OR ".join(f"{t}*" for t in terms[:5])
-
-        rows = db.execute(
-            f"""SELECT e.* FROM encik e
-                JOIN {ENCIK_FTS_CONFIG.fts_table} f ON e.rowid = f.rowid
-                WHERE {ENCIK_FTS_CONFIG.fts_table} MATCH ?
-                ORDER BY rank
-                LIMIT ?""",
-            (fts_query, limit),
-        )
-        if not rows:
-            # Fallback: any recent entry as general style reference
-            rows = db.execute(
-                """SELECT * FROM encik
-                   ORDER BY modifita_je DESC
-                   LIMIT ?""",
-                (limit,),
-            )
-        if not rows:
-            return ""
-
-        parts: list[str] = []
-        for r in rows:
-            entry = row_to_dict(r)
-            enc_text = entry_to_enc(entry)
-            parts.append(enc_text)
-        return "\n\n---\n\n".join(parts)
-    except Exception:
-        return ""
-
-
 
 
 
@@ -366,9 +307,8 @@ def generi(
     try:
         prompt_text = _get_format_prompt(formato)
         if formato == "enc":
-            examples = _get_enc_examples(prompto, limit=2)
             prompt = prompt_text.format(
-                title_line=title_line, prompto=prompto, examples=examples,
+                title_line=title_line, prompto=prompto,
             )
             messages = [{"role": "user", "content": prompt}]
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose, interject=interjekti)
