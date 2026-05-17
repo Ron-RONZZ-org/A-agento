@@ -34,7 +34,6 @@ def _ensure_or_create(
         return existing["uuid"]
 
     data = {
-        "titolo": titolo,
         "terminologio": {"eo": terminologio_eo},
         "difinoj": {"eo": difino_eo},
     }
