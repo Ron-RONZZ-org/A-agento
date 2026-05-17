@@ -73,6 +73,9 @@ def _ensure_year_entry(year: str, bce: bool = False) -> str:
         from A_encik.service import get_service
 
         svc = get_service()
+        y = int(year_str)
+        era_short, era_long = (" a.K.E.", " (a.K.E.)") if bce else ("", "")
+
         entry = _retry_on_db_locked(svc.ensure_year, y, bce=bce)
 
         decade_start = (y // 10) * 10
