@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from A.data.base import SQLiteDB
+from A.data.base import SQLiteDB, backup_db, health_check
 from A.core.paths import data_dir
 
 # Database name
@@ -75,7 +75,7 @@ _db: SQLiteDB | None = None
 
 
 def get_db() -> SQLiteDB:
-    """Get the SQLite database for A-agento.
+    """Get the SQLite database for A-agento with health check and backup.
 
     Returns:
         SQLiteDB instance
@@ -83,6 +83,10 @@ def get_db() -> SQLiteDB:
     global _db
     if _db is None:
         db_path = data_dir() / f"{_DB_NAME}.db"
+        if not health_check(db_path):
+            from A.data.base import repair_db as _repair
+            _repair(db_path)
+        backup_db(db_path)
         _db = SQLiteDB(db_path, schema=_SCHEMA)
     return _db
 
