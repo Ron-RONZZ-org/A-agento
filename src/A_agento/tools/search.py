@@ -11,19 +11,14 @@ from A_agento.tools._retry import retry_on_db_locked as _retry_on_db_locked
 
 
 def _enrich_db_locked(exc: Exception, **context: str) -> str:
-    """Enrich 'database is locked' error with operation context."""
+    """Enrich error message and trigger DB repair if corrupted."""
     msg = str(exc)
     lower_msg = msg.lower()
-    # Auto-repair on DB corruption, then next call reconnects fresh
     if "malformed" in lower_msg or "disk i/o" in lower_msg:
-        try:
-            from A_encik.data.storage import repair_db
-            from A_encik.service import _encik_service
-            repair_db()
-            # Invalidate cached service so next get_service() reconnects
-            _encik_service = None
-        except Exception:
-            pass
+        # Trigger repair but don't retry — next tool call gets fresh connection
+        from A_agento.tools._retry import _trigger_repair
+        _trigger_repair()
+        return f"database malformed, repairing ({exc})"
     if "database is locked" in lower_msg:
         ctx = ", ".join(f"{k}={v!r}" for k, v in context.items())
         return f"database is locked ({ctx})"
