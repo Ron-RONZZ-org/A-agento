@@ -40,7 +40,7 @@ def _search_encik(query: str) -> str:
         if entries:
             results = [
                 {
-                    "uuid": e.get("uuid", ""),
+                    "uuid": e.get("uuid", "")[:8],
                     "titolo": e.get("titolo", ""),
                     "preview": (e.get("difinio") or "")[:200],
                 }
@@ -73,7 +73,7 @@ def _get_encik_entry(uuid: str) -> str:
         if entry:
             enc_text = entry_to_enc(entry)
             result = {
-                "uuid": entry["uuid"],
+                "uuid": entry["uuid"][:8],
                 "titolo": entry.get("titolo", ""),
                 "enc_format": enc_text[:2000],
             }

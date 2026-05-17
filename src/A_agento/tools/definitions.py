@@ -9,9 +9,10 @@ SEARCH_ENCIK_TOOL = {
     "function": {
         "name": "search_encik",
         "description": "Search the personal encik knowledge base for entries related to a query. "
-                       "Returns title, UUID, and preview. "
+                       "Returns title, UUID prefix (8 chars), and preview. "
                        "For 4-digit year queries (e.g. '1879'), auto-creates the year, decade, "
-                       "and century entries — response includes year_uuid, decade_uuid, century_uuid.",
+                       "and century entries — response includes year_uuid (8-char prefix), "
+                       "decade_uuid, century_uuid.",
         "parameters": {
             "type": "object",
             "properties": {
