@@ -3,7 +3,20 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from typing import Any
+
+
+def _try_repair_db() -> None:
+    """Attempt DB repair once per session. Safe to call speculatively."""
+    if getattr(_try_repair_db, "_done", False):
+        return
+    _try_repair_db._done = True
+    try:
+        from A_encik.data.storage import repair_db
+        repair_db()
+    except Exception:
+        pass
 
 
 def _search_fts(db, query: str, fts_cfg) -> list[dict] | None:
@@ -77,6 +90,13 @@ def _search_encik(query: str) -> str:
         return json.dumps({"message": f"No entries found for '{query}'"})
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
+    except sqlite3.DatabaseError as e:
+        from A import warning as _warn
+        _warn(f"Encik DB unavailable: {e}")
+        _try_repair_db()
+        return json.dumps({"message": f"Search temporarily unavailable: {e}"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 
 def _get_encik_entry(uuid: str) -> str:
@@ -109,6 +129,9 @@ def _get_encik_entry(uuid: str) -> str:
         return json.dumps({"error": f"No entry found for UUID '{uuid}'"})
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
+    except sqlite3.DatabaseError as e:
+        _try_repair_db()
+        return json.dumps({"error": f"Entry lookup unavailable: {e}"})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
