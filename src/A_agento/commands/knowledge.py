@@ -32,40 +32,52 @@ def _get_format_prompt(formato: str) -> str:
     return load_prompt(f"generi_{formato}")
 
 
-def _get_enc_examples(limit: int = 2) -> str:
-    """Query encik DB for well-formed entries and return them as .enc examples.
+def _get_enc_examples(topic: str, limit: int = 2) -> str:
+    """Retrieve relevant encik entries as few-shot .enc examples (RAG).
 
-    Selects entries with semantika data (more complete examples),
-    most recently modified first. Falls back to any entry if none have
-    semantika data.
+    Uses FTS5 full-text search to find entries semantically related to
+    the user's topic, then converts them to .enc format. This gives
+    the LLM relevant, real-world examples from the user's own knowledge
+    base to guide structure and style.
 
     Args:
+        topic: User's topic/prompt to search for relevant examples
         limit: Max number of example entries (default 2)
 
     Returns:
-        Formatted .enc examples string, or empty string if encik unavailable.
+        Formatted .enc examples string, or empty string if encik
+        unavailable or no entries found.
     """
     try:
         from A_encik.data.storage import get_db as encik_db
-        from A_encik.data.storage import row_to_dict
+        from A_encik.data.storage import row_to_dict, ENCIK_FTS_CONFIG
         from A_encik.enc_format import entry_to_enc
 
         db = encik_db()
-        # Prefer entries with semantika data, most recently modified
+
+        # FTS5 relevance-ranked search on the topic
+        import re as _re
+        terms = _re.findall(r"[a-zA-Z0-9\']+", topic)
+        if not terms:
+            return ""
+        fts_query = " OR ".join(f"{t}*" for t in terms[:5])
+
         rows = db.execute(
-            """SELECT * FROM encik
-               WHERE semantika IS NOT NULL AND semantika != ''
-               ORDER BY modifita_je DESC
-               LIMIT ?""",
-            (limit,),
+            f"""SELECT e.* FROM encik e
+                JOIN {ENCIK_FTS_CONFIG.fts_table} f ON e.rowid = f.rowid
+                WHERE {ENCIK_FTS_CONFIG.fts_table} MATCH ?
+                ORDER BY rank
+                LIMIT ?""",
+            (fts_query, limit),
         )
         if not rows:
-            # Fallback: any recent entry
+            # Fallback: LIKE search on title
             rows = db.execute(
                 """SELECT * FROM encik
+                   WHERE titolo LIKE ? OR difinio LIKE ?
                    ORDER BY modifita_je DESC
                    LIMIT ?""",
-                (limit,),
+                (f"%{topic}%", f"%{topic}%", limit),
             )
         if not rows:
             return ""
@@ -355,7 +367,7 @@ def generi(
     try:
         prompt_text = _get_format_prompt(formato)
         if formato == "enc":
-            examples = _get_enc_examples(limit=2)
+            examples = _get_enc_examples(prompto, limit=2)
             prompt = prompt_text.format(
                 title_line=title_line, prompto=prompto, examples=examples,
             )
