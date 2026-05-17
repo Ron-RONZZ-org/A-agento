@@ -71,13 +71,12 @@ def _get_enc_examples(topic: str, limit: int = 2) -> str:
             (fts_query, limit),
         )
         if not rows:
-            # Fallback: LIKE search on title
+            # Fallback: any recent entry as general style reference
             rows = db.execute(
                 """SELECT * FROM encik
-                   WHERE titolo LIKE ? OR difinio LIKE ?
                    ORDER BY modifita_je DESC
                    LIMIT ?""",
-                (f"%{topic}%", f"%{topic}%", limit),
+                (limit,),
             )
         if not rows:
             return ""

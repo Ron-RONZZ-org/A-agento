@@ -93,6 +93,7 @@ def _ensure_listener() -> None:
 
 def _check_user_interject() -> str | None:
     """Check if user pressed 'x' to interject. Returns correction or None."""
+    global _last_user_input, _input_lock
     with _input_lock:
         if _last_user_input == "x":
             from A import info as _hint
