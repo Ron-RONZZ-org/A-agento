@@ -97,7 +97,10 @@ def _ensure_year_entry(year: str, bce: bool = False) -> str:
     except ValueError as e:
         return json.dumps({"error": str(e)})
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        err_msg = str(e)
+        if "database is locked" in err_msg.lower():
+            err_msg = f"database is locked (year={year!r})"
+        return json.dumps({"error": err_msg})
 
 
 def _ensure_decade_entry(decade: str, bce: bool = False) -> str:
@@ -136,7 +139,10 @@ def _ensure_decade_entry(decade: str, bce: bool = False) -> str:
     except ValueError as e:
         return json.dumps({"error": str(e)})
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        err_msg = str(e)
+        if "database is locked" in err_msg.lower():
+            err_msg = f"database is locked (decade={decade!r})"
+        return json.dumps({"error": err_msg})
 
 
 def _ensure_century_entry(century: str, bce: bool = False) -> str:
@@ -163,4 +169,7 @@ def _ensure_century_entry(century: str, bce: bool = False) -> str:
     except ValueError as e:
         return json.dumps({"error": str(e)})
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        err_msg = str(e)
+        if "database is locked" in err_msg.lower():
+            err_msg = f"database is locked (century={century!r})"
+        return json.dumps({"error": err_msg})

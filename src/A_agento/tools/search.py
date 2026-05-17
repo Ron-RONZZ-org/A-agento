@@ -9,6 +9,15 @@ import json
 from typing import Any
 
 
+def _enrich_db_locked(exc: Exception, **context: str) -> str:
+    """Enrich 'database is locked' error with operation context."""
+    msg = str(exc)
+    if "database is locked" in msg.lower():
+        ctx = ", ".join(f"{k}={v!r}" for k, v in context.items())
+        return f"database is locked ({ctx})"
+    return msg
+
+
 def _search_encik(query: str) -> str:
     """Search encik DB by keyword/title via EncikService.
 
@@ -52,7 +61,7 @@ def _search_encik(query: str) -> str:
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        return json.dumps({"error": _enrich_db_locked(e, query=query)})
 
 
 def _get_encik_entry(uuid: str) -> str:
@@ -82,7 +91,7 @@ def _get_encik_entry(uuid: str) -> str:
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        return json.dumps({"error": _enrich_db_locked(e, uuid=uuid)})
 
 
 def _lookup_wikidata_property(query: str) -> str:
