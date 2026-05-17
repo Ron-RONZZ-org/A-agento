@@ -90,5 +90,12 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
   - `e.g.`, for an entry on Spain, we would include the 3 default + the local language `es`
 - `difino` should be in `eo`
 
+## FEW-SHOT EXAMPLES
+
+Below are real .enc entries from the user's knowledge base. 
+Use them as reference for structure, style, and the level of detail expected.
+
+{examples}
+
 Topic: {prompto}
 Generate directly the .enc content. No word padding. No extra explanation.

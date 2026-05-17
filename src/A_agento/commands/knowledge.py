@@ -32,6 +32,54 @@ def _get_format_prompt(formato: str) -> str:
     return load_prompt(f"generi_{formato}")
 
 
+def _get_enc_examples(limit: int = 2) -> str:
+    """Query encik DB for well-formed entries and return them as .enc examples.
+
+    Selects entries with semantika data (more complete examples),
+    most recently modified first. Falls back to any entry if none have
+    semantika data.
+
+    Args:
+        limit: Max number of example entries (default 2)
+
+    Returns:
+        Formatted .enc examples string, or empty string if encik unavailable.
+    """
+    try:
+        from A_encik.data.storage import get_db as encik_db
+        from A_encik.data.storage import row_to_dict
+        from A_encik.enc_format import entry_to_enc
+
+        db = encik_db()
+        # Prefer entries with semantika data, most recently modified
+        rows = db.execute(
+            """SELECT * FROM encik
+               WHERE semantika IS NOT NULL AND semantika != ''
+               ORDER BY modifita_je DESC
+               LIMIT ?""",
+            (limit,),
+        )
+        if not rows:
+            # Fallback: any recent entry
+            rows = db.execute(
+                """SELECT * FROM encik
+                   ORDER BY modifita_je DESC
+                   LIMIT ?""",
+                (limit,),
+            )
+        if not rows:
+            return ""
+
+        parts: list[str] = []
+        for r in rows:
+            entry = row_to_dict(r)
+            enc_text = entry_to_enc(entry)
+            parts.append(enc_text)
+        return "\n\n---\n\n".join(parts)
+    except Exception:
+        return ""
+
+
 
 
 
@@ -307,7 +355,10 @@ def generi(
     try:
         prompt_text = _get_format_prompt(formato)
         if formato == "enc":
-            prompt = prompt_text.format(title_line=title_line, prompto=prompto)
+            examples = _get_enc_examples(limit=2)
+            prompt = prompt_text.format(
+                title_line=title_line, prompto=prompto, examples=examples,
+            )
             messages = [{"role": "user", "content": prompt}]
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose, interject=interjekti)
             content = _clean_enc_output(content)
