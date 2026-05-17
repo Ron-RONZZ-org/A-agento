@@ -36,16 +36,16 @@ def _search_encik(query: str) -> str:
         year = _parse_year(clean)
         if year is not None:
             bce = _is_bce(clean)
-            return _ensure_year_entry(str(year), bce=bce)
+            return _retry_on_db_locked(_ensure_year_entry, str(year), bce=bce)
 
         from A_encik.service import get_service
 
         svc = get_service()
 
         # FTS5 relevance-ranked search, fallback to LIKE
-        entries = svc.search_fts(query, limit=8)
+        entries = _retry_on_db_locked(svc.search_fts, query, limit=8)
         if not entries:
-            entries = svc.search_like(query, limit=8)
+            entries = _retry_on_db_locked(svc.search_like, query, limit=8)
         if entries:
             results = [
                 {
@@ -78,7 +78,7 @@ def _get_encik_entry(uuid: str) -> str:
         from A_encik.enc_format import entry_to_enc
 
         svc = get_service()
-        entry = svc.get(uuid)
+        entry = _retry_on_db_locked(svc.get, uuid)
         if entry:
             enc_text = entry_to_enc(entry)
             result = {

@@ -7,6 +7,27 @@ Each level sets the previous as superklaso (parent).
 from __future__ import annotations
 
 import json
+import time
+
+
+_MAX_RETRIES = 3
+_RETRY_DELAY = 1.0  # seconds
+
+
+def _retry_on_db_locked(fn, *args, **kwargs):
+    """Retry a function if it raises 'database is locked'."""
+    last_exc = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            if "database is locked" in str(e).lower():
+                last_exc = e
+                if attempt < _MAX_RETRIES - 1:
+                    time.sleep(_RETRY_DELAY)
+                    continue
+            raise
+    raise last_exc  # type: ignore[misc]
 
 
 def _ensure_or_create(
@@ -29,7 +50,7 @@ def _ensure_or_create(
     from A_encik.service import get_service
 
     svc = get_service()
-    existing = svc.find_by_titolo(titolo)
+    existing = _retry_on_db_locked(svc.find_by_titolo, titolo)
     if existing:
         return existing["uuid"]
 
@@ -39,7 +60,7 @@ def _ensure_or_create(
     }
     if superklaso:
         data["superklaso"] = superklaso
-    entry = svc.create(data)
+    entry = _retry_on_db_locked(svc.create, data)
     return entry["uuid"]
 
 
@@ -71,19 +92,16 @@ def _ensure_year_entry(year: str, bce: bool = False) -> str:
         from A_encik.service import get_service
 
         svc = get_service()
-        y = int(year_str)
-        era_short, era_long = (" a.K.E.", " (a.K.E.)") if bce else ("", "")
-
-        entry = svc.ensure_year(y, bce=bce)
+        entry = _retry_on_db_locked(svc.ensure_year, y, bce=bce)
 
         decade_start = (y // 10) * 10
         century_num = (y - 1) // 100 + 1
 
         decade_titolo = f"{decade_start}a jardeko{era_long} (kalendara jardeko)"
-        decade = svc.find_by_titolo(decade_titolo)
+        decade = _retry_on_db_locked(svc.find_by_titolo, decade_titolo)
 
         century_titolo = f"{century_num}a jarcento{era_long} (kalendara jarcento)"
-        century = svc.find_by_titolo(century_titolo)
+        century = _retry_on_db_locked(svc.find_by_titolo, century_titolo)
 
         result: dict[str, str] = {"uuid": entry["uuid"][:8]}
         if decade:
@@ -125,11 +143,11 @@ def _ensure_decade_entry(decade: str, bce: bool = False) -> str:
         from A_encik.service import get_service
 
         svc = get_service()
-        entry = svc.ensure_decade(dv, bce=bce)
+        entry = _retry_on_db_locked(svc.ensure_decade, dv, bce=bce)
         era_short, era_long = (" a.K.E.", " (a.K.E.)") if bce else ("", "")
         century_num = (dv - 1) // 100 + 1
         century_titolo = f"{century_num}a jarcento{era_long} (kalendara jarcento)"
-        century = svc.find_by_titolo(century_titolo)
+        century = _retry_on_db_locked(svc.find_by_titolo, century_titolo)
         result: dict[str, str] = {"uuid": entry["uuid"][:8]}
         if century:
             result["century_uuid"] = century["uuid"][:8]
@@ -162,7 +180,7 @@ def _ensure_century_entry(century: str, bce: bool = False) -> str:
         from A_encik.service import get_service
 
         svc = get_service()
-        entry = svc.ensure_century(int(c), bce=bce)
+        entry = _retry_on_db_locked(svc.ensure_century, int(c), bce=bce)
         return json.dumps({"uuid": entry["uuid"][:8]}, ensure_ascii=False, default=str)
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
