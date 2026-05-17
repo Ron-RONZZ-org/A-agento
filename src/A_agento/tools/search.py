@@ -6,7 +6,8 @@ Uses A-encik's service layer (EncikService) instead of direct DB access.
 from __future__ import annotations
 
 import json
-from typing import Any
+
+from A_agento.tools._retry import retry_on_db_locked as _retry_on_db_locked
 
 
 def _enrich_db_locked(exc: Exception, **context: str) -> str:

@@ -7,27 +7,8 @@ Each level sets the previous as superklaso (parent).
 from __future__ import annotations
 
 import json
-import time
 
-
-_MAX_RETRIES = 3
-_RETRY_DELAY = 1.0  # seconds
-
-
-def _retry_on_db_locked(fn, *args, **kwargs):
-    """Retry a function if it raises 'database is locked'."""
-    last_exc = None
-    for attempt in range(_MAX_RETRIES):
-        try:
-            return fn(*args, **kwargs)
-        except Exception as e:
-            if "database is locked" in str(e).lower():
-                last_exc = e
-                if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_RETRY_DELAY)
-                    continue
-            raise
-    raise last_exc  # type: ignore[misc]
+from A_agento.tools._retry import retry_on_db_locked as _retry_on_db_locked
 
 
 def _ensure_or_create(
