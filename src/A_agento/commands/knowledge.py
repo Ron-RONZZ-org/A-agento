@@ -159,16 +159,19 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
             path.parent.mkdir(parents=True, exist_ok=True)
             continue
 
-        # Attempt to write file with detailed failure reporting
-        _sys.stderr.write(f"[DEBUG] Writing to {path}, content len={len(content)}\n")
+        # Write file step by step with stderr trace
+        _sys.stderr.write(f"[TRACE] path.write_text start len={len(content)}\n")
         _sys.stderr.flush()
         try:
-            path.write_text(content, encoding="utf-8")
+            with open(str(path), "w", encoding="utf-8") as _f:
+                _f.write(content)
+            _sys.stderr.write("[TRACE] path.write_text done\n")
+            _sys.stderr.flush()
         except Exception as e:
-            _sys.stderr.write(f"[DEBUG] write_text failed: {type(e).__name__}: {e}\n")
+            _sys.stderr.write(f"[TRACE] write failed: {e}\n")
             _sys.stderr.flush()
             raise
-        _sys.stderr.write(f"[DEBUG] write_text succeeded\n")
+        _sys.stderr.write("[TRACE] calling success()\n")
         _sys.stderr.flush()
         success(
             tr_multi(
@@ -177,6 +180,8 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
                 f"Enregistré dans {path}",
             )
         )
+        _sys.stderr.write("[TRACE] returning\n")
+        _sys.stderr.flush()
         return path
 
 
