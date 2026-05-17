@@ -39,7 +39,9 @@ def _search_fts(db, query: str, fts_cfg) -> list[dict] | None:
         fts_query = " OR ".join(f"{t}*" for t in terms[:5])
 
         sql = (
-            f"SELECT e.uuid, e.titolo, substr(e.difinio, 1, 200) as preview "
+            f"SELECT e.uuid, "
+            f"COALESCE(json_extract(e.terminologio, '$.eo'), '') as titolo, "
+            f"substr(e.difinio, 1, 200) as preview "
             f"FROM encik e "
             f"JOIN {fts_cfg.fts_table} f ON e.rowid = f.rowid "
             f"WHERE {fts_cfg.fts_table} MATCH ? "
@@ -78,9 +80,14 @@ def _search_encik(query: str) -> str:
         results = _search_fts(db, query, fts_cfg)
         if not results:
             results = db.execute(
-                """SELECT uuid, titolo, substr(difinio, 1, 200) as preview
-                   FROM encik WHERE titolo LIKE ? OR difinio LIKE ?
-                   ORDER BY CASE WHEN titolo LIKE ? THEN 0 ELSE 1 END, titolo
+                """SELECT uuid,
+                          COALESCE(json_extract(terminologio, '$.eo'), '') as titolo,
+                          substr(difinio, 1, 200) as preview
+                   FROM encik
+                   WHERE terminologio_search LIKE ? OR difinio LIKE ?
+                   ORDER BY
+                     CASE WHEN terminologio_search LIKE ? THEN 0 ELSE 1 END,
+                     terminologio_search
                    LIMIT 8""",
                 (f"%{query}%", f"%{query}%", f"{query}%"),
             )
