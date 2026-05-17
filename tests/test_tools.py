@@ -57,7 +57,7 @@ class TestExecuteToolCall:
         from A_agento.tools import execute_tool_call
         from A.core.providers import ToolCall
 
-        with patch("A_agento.tools._search_encik", return_value='[{"uuid": "abc", "titolo": "test"}]'):
+        with patch("A_agento.tools.executor._search_encik", return_value='[{"uuid": "abc", "titolo": "test"}]'):
             tc = ToolCall(id="1", function={"name": "search_encik", "arguments": '{"query": "test"}'})
             result = execute_tool_call(tc)
             data = json.loads(result)
@@ -85,7 +85,9 @@ class TestGenerateWithTools:
         from A_agento.tools import generate_with_tools
         mock_provider = Mock()
         mock_provider.supports_tools = False
-        mock_provider.generate.return_value = "Fallback response"
+        mock_response = Mock()
+        mock_response.content = "Fallback response"
+        mock_provider.chat.return_value = mock_response
 
         result = generate_with_tools(mock_provider, [{"role": "user", "content": "hello"}])
         assert result == "Fallback response"
@@ -96,16 +98,17 @@ class TestFallbackWithContext:
 
     def test_keyword_extraction(self):
         """Test that keywords are extracted from user message."""
-        with patch("A_agento.tools._search_encik", return_value='[]'):
-            from A_agento.tools import _fallback_with_context
+        from A_agento.tools.executor import _fallback_with_context
 
-            mock_provider = Mock()
-            mock_provider.generate.return_value = "Generated text"
-            mock_provider.supports_tools = False
+        mock_provider = Mock()
+        mock_response = Mock()
+        mock_response.content = "Generated text"
+        mock_provider.chat.return_value = mock_response
+        mock_provider.supports_tools = False
 
-            result = _fallback_with_context(
-                mock_provider,
-                [{"role": "user", "content": "Explain quantum computing"}],
-                [],
-            )
-            assert result == "Generated text"
+        result = _fallback_with_context(
+            mock_provider,
+            [{"role": "user", "content": "Explain quantum computing"}],
+            [],
+        )
+        assert result == "Generated text"
