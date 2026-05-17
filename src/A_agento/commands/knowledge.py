@@ -185,6 +185,37 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
         return path
 
 
+def _build_context_block(topic: str, max_entries: int = 20) -> str:
+    """Search encik for entries related to *topic* and format as a reference block.
+
+    Returns a string like::
+
+        - scienco (#aa1f345c): sistema studo de la mondo
+        - libro (#827b73b8): kolekto de skribitaj paghoj
+
+    Empty string if A-encik is not installed or no results found.
+    """
+    try:
+        from A_encik.service import get_service
+        svc = get_service()
+        entries = svc.search_like(topic, limit=max_entries)
+        if not entries:
+            return ""
+
+        lines: list[str] = []
+        for e in entries:
+            uid = (e.get("uuid") or "")[:8]
+            title = e.get("titolo") or ""
+            preview = (e.get("difinio") or "")[:80].replace("\n", " ")
+            if uid and title:
+                lines.append(f"- {title} (#{uid}): {preview}" if preview else f"- {title} (#{uid})")
+        return "\n".join(lines) if lines else ""
+    except ImportError:
+        return ""
+    except Exception:
+        return ""
+
+
 def generi(
     prompto: str = typer.Argument(
         ...,
@@ -315,6 +346,10 @@ def generi(
             prompt = prompt_text.format(
                 title_line=title_line, prompto=prompto,
             )
+            # Warm context: pre-populate with existing entries relevant to the topic
+            context_block = _build_context_block(prompto)
+            if context_block:
+                prompt += f"\n\n# Existing entries you can reference directly\n{context_block}"
             messages = [{"role": "user", "content": prompt}]
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose, interject=interjekti)
             content = _clean_enc_output(content)
