@@ -1,60 +1,16 @@
-"""Encik search and Wikidata property lookup for LLM tool calling."""
+"""Encik search and Wikidata property lookup for LLM tool calling.
+
+Uses A-encik's service layer (EncikService) instead of direct DB access.
+"""
 
 from __future__ import annotations
 
 import json
-import sqlite3
 from typing import Any
 
 
-def _try_repair_db() -> None:
-    """Attempt DB repair once per session. Safe to call speculatively."""
-    if getattr(_try_repair_db, "_done", False):
-        return
-    _try_repair_db._done = True
-    try:
-        from A_encik.data.storage import repair_db
-        repair_db()
-    except Exception:
-        pass
-
-
-def _search_fts(db, query: str, fts_cfg) -> list[dict] | None:
-    """Search encik DB using FTS5 for relevance-ranked results.
-
-    Args:
-        db: SQLiteDB instance
-        query: Search query string
-        fts_cfg: FTSConfig from A_encik
-
-    Returns:
-        List of matching entries or None if FTS fails
-    """
-    import re as _re
-
-    try:
-        terms = _re.findall(r"[a-zA-Z0-9]+", query)
-        if not terms:
-            return None
-        fts_query = " OR ".join(f"{t}*" for t in terms[:5])
-
-        sql = (
-            f"SELECT e.uuid, "
-            f"COALESCE(json_extract(e.terminologio, '$.eo'), '') as titolo, "
-            f"substr(e.difinio, 1, 200) as preview "
-            f"FROM encik e "
-            f"JOIN {fts_cfg.fts_table} f ON e.rowid = f.rowid "
-            f"WHERE {fts_cfg.fts_table} MATCH ? "
-            f"ORDER BY rank "
-            f"LIMIT 8"
-        )
-        return db.execute(sql, (fts_query,))
-    except Exception:
-        return None
-
-
 def _search_encik(query: str) -> str:
-    """Search encik DB by keyword/title.
+    """Search encik DB by keyword/title via EncikService.
 
     Uses FTS5 for relevance-ranked results when available, falls back to
     LIKE search. If the query is a 4-digit year, short-circuits to
@@ -73,41 +29,34 @@ def _search_encik(query: str) -> str:
             bce = _is_bce(clean)
             return _ensure_year_entry(str(year), bce=bce)
 
-        from A_encik.data.storage import get_db as encik_db
-        from A_encik.data.storage import ENCIK_FTS_CONFIG as fts_cfg
+        from A_encik.service import get_service
 
-        db = encik_db()
-        results = _search_fts(db, query, fts_cfg)
-        if not results:
-            results = db.execute(
-                """SELECT uuid,
-                          COALESCE(json_extract(terminologio, '$.eo'), '') as titolo,
-                          substr(difinio, 1, 200) as preview
-                   FROM encik
-                   WHERE terminologio_search LIKE ? OR difinio LIKE ?
-                   ORDER BY
-                     CASE WHEN terminologio_search LIKE ? THEN 0 ELSE 1 END,
-                     terminologio_search
-                   LIMIT 8""",
-                (f"%{query}%", f"%{query}%", f"{query}%"),
-            )
-        if results:
+        svc = get_service()
+
+        # FTS5 relevance-ranked search, fallback to LIKE
+        entries = svc.search_fts(query, limit=8)
+        if not entries:
+            entries = svc.search_like(query, limit=8)
+        if entries:
+            results = [
+                {
+                    "uuid": e.get("uuid", ""),
+                    "titolo": e.get("titolo", ""),
+                    "preview": (e.get("difinio") or "")[:200],
+                }
+                for e in entries
+            ]
             return json.dumps(results, ensure_ascii=False, default=str)
 
         return json.dumps({"message": f"No entries found for '{query}'"})
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
-    except sqlite3.DatabaseError as e:
-        from A import warning as _warn
-        _warn(f"Encik DB unavailable: {e}")
-        _try_repair_db()
-        return json.dumps({"message": f"Search temporarily unavailable: {e}"})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
 
 def _get_encik_entry(uuid: str) -> str:
-    """Get a full encik entry by UUID.
+    """Get a full encik entry by UUID via EncikService.
 
     Args:
         uuid: Entry UUID (full or prefix)
@@ -116,29 +65,22 @@ def _get_encik_entry(uuid: str) -> str:
         JSON with the full entry
     """
     try:
-        from A_encik.data.storage import get_db as encik_db
-        from A_encik.data.storage import row_to_dict
+        from A_encik.service import get_service
         from A_encik.enc_format import entry_to_enc
 
-        db = encik_db()
-        entry = db.execute_one(
-            "SELECT * FROM encik WHERE uuid LIKE ?", (f"{uuid}%",)
-        )
+        svc = get_service()
+        entry = svc.get(uuid)
         if entry:
-            entry_dict = row_to_dict(entry)
-            enc_text = entry_to_enc(entry_dict)
+            enc_text = entry_to_enc(entry)
             result = {
-                "uuid": entry_dict["uuid"],
-                "titolo": entry_dict["titolo"],
+                "uuid": entry["uuid"],
+                "titolo": entry.get("titolo", ""),
                 "enc_format": enc_text[:2000],
             }
             return json.dumps(result, ensure_ascii=False, default=str)
         return json.dumps({"error": f"No entry found for UUID '{uuid}'"})
     except ImportError:
         return json.dumps({"error": "A-encik is not installed"})
-    except sqlite3.DatabaseError as e:
-        _try_repair_db()
-        return json.dumps({"error": f"Entry lookup unavailable: {e}"})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -147,7 +89,7 @@ def _lookup_wikidata_property(query: str) -> str:
     """Search for Wikidata properties by English keyword.
 
     Always queries in English for consistency. Delegates to A-encik's
-    semantika_cache which handles: SQLite cache → CSV files → Wikidata API.
+    semantika_cache which handles: SQLite cache -> CSV files -> Wikidata API.
 
     Args:
         query: English keyword (e.g. "profession", "date of birth")
