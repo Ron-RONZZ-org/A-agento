@@ -89,7 +89,7 @@ Generate an .enc file for the encik personal knowledge base. Follow the format r
 ## LANGUAGES
 - `terminologio` should be in 3 default languages: `eo`, `fr`, `en` + the original language of the concept, IF not among `eo`, `fr`, `en`
   - `e.g.`, for an entry on Spain, we would include the 3 default + the local language `es`
-- `difino` should be in `eo`
+- `difino` should be in `eo`, EXCEPT if specified otherwise
 
 ## CRITICAL: Search limit
 You have a maximum of 3 search calls per entity. After 3 unfruitful searches,

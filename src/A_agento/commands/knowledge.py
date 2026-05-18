@@ -1,11 +1,10 @@
 from __future__ import annotations
-from A import confirm_action
+
 """A-agento AI commands for text generation.
 
 Functions:
 - generi: Generate content with AI (txt, md, json, enc formats)
 """
-
 
 import json
 from pathlib import Path
@@ -136,22 +135,25 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
         The final path the file was saved to, or None if cancelled.
     """
     import sys as _sys
+    import typer as _typer
 
     while True:
-        if path.exists() and not confirm_action(
-            tr_multi(
-                f"Dosiero {path} jam ekzistas. Anstataŭigi?",
-                f"File {path} already exists. Overwrite?",
-                f"Le fichier {path} existe déjà. Remplacer ?",
-            ),
-            default=False,
-        ):
-            prompt_msg = tr_multi(
-                "Alternativa vojo (malplena por nuligi): ",
-                "Alternative path (empty to cancel): ",
-                "Chemin alternatif (vide pour annuler) : ",
+        if path.exists():
+            overwrite = _typer.confirm(
+                tr_multi(
+                    f"Dosiero {path} jam ekzistas. Anstataŭigi?",
+                    f"File {path} already exists. Overwrite?",
+                    f"Le fichier {path} existe déjà. Remplacer ?",
+                ),
+                default=False,
             )
-            alt = input(prompt_msg).strip()
+            if not overwrite:  # explicit no: ask for alternative
+                prompt_msg = tr_multi(
+                    "Alternativa vojo (malplena por nuligi): ",
+                    "Alternative path (empty to cancel): ",
+                    "Chemin alternatif (vide pour annuler) : ",
+                )
+                alt = _typer.prompt(prompt_msg, default="").strip()
             if not alt:
                 info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
                 return None
@@ -392,6 +394,9 @@ def generi(
 
     # Save to file if requested (human-in-the-loop: user reviews first)
     if konservi:
+        import sys as _sys
+        _sys.stderr.write(f"[TRACE] _save_to_file called with konservi={konservi} content_len={len(content)} formato={formato}\n")
+        _sys.stderr.flush()
         # Auto-append file extension if missing
         ext_map = {"txt": ".txt", "md": ".md", "json": ".json", "enc": ".enc"}
         suffix = ext_map.get(formato, "")
