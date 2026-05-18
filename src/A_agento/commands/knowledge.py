@@ -80,13 +80,15 @@ def _clean_enc_output(content: str) -> str:
         raise ValueError("LLM returned raw tool output instead of generated content")
 
     # Strip code fences anywhere in the content.
-    # Find the first ``` and last ``` and extract content between them.
+    # Extract the LAST code block only (LLM may generate multiple drafts
+    # before arriving at a final version — earlier drafts are discarded).
     fence_pattern = r'```\w*'
     fences = list(re.finditer(fence_pattern, content))
     if len(fences) >= 2:
-        first = fences[0].start()
+        # Take the last pair of fences (last code block)
+        first = fences[-2].start()
         last = fences[-1].end()
-        # Extract content between first fence's end and last fence's start
+        # Extract content between second-to-last fence's end and last fence's start
         after_first = content[first:].split('\n', 1)
         before_last = content[:last].rsplit('\n', 1)
         if len(after_first) > 1 and len(before_last) > 1:
