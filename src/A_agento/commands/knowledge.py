@@ -7,7 +7,6 @@ Functions:
 """
 
 import json
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Optional
 
@@ -16,12 +15,19 @@ import typer
 from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard
 from A_agento.commands._helpers import get_provider_or_exit
 
-# Lazy import: A.core.http may not be available on older A-core installations.
+# Lazy imports: A-core modules may not exist on older installations.
 _fetch_text = None  # type: ignore
 try:
     from A.core.http import fetch_text as _fetch_text
 except ImportError:
     pass
+
+_core_html_to_text = None  # type: ignore
+try:
+    from A.core.web import html_to_text as _core_html_to_text
+except ImportError:
+    pass
+
 from A_agento.tools import generate_with_tools, ENCIK_TOOLS
 from A_agento.prompt_loader import load_prompt
 
@@ -149,7 +155,7 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
 
     while True:
         if path.exists():
-            overwrite = confirm_action(
+            overwrite = _typer.confirm(
                 tr_multi(
                     f"Dosiero {path} jam ekzistas. Anstataŭigi?",
                     f"File {path} already exists. Overwrite?",
@@ -236,52 +242,18 @@ _MAX_FILE_BYTES = 5_000_000
 _MAX_CONTEXT_CHARS = 50_000
 
 
-class _TextExtractor(HTMLParser):
-    """HTML parser that extracts plain text, removing tags, scripts, and styles."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._parts: list[str] = []
-        self._skip = False
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in ("script", "style", "noscript"):
-            self._skip = True
-        if tag in ("p", "br", "div", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6"):
-            self._parts.append("\n")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in ("script", "style", "noscript"):
-            self._skip = False
-        if tag in ("p", "div", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6"):
-            self._parts.append("\n")
-
-    def handle_data(self, data: str) -> None:
-        if not self._skip:
-            self._parts.append(data)
-
-    def get_text(self) -> str:
-        return "".join(self._parts)
-
-
 def _html_to_text(html: str) -> str:
     """Strip HTML tags and return plain text.
 
-    Uses stdlib ``HTMLParser`` — no external dependencies.
-    ``<script>``, ``<style>``, ``<noscript>`` blocks are removed entirely.
-    Block-level tags insert newlines for readability.
-    Multiple blank lines are collapsed to at most two.
+    Delegates to ``A.core.web.html_to_text()`` for trafilatura-backed
+    extraction with LaTeX noise removal.  Falls back to raw tag stripping
+    if A-core version is too old.
     """
-    extractor = _TextExtractor()
-    try:
-        extractor.feed(html)
-        extractor.close()
-    except Exception:
-        return html  # fallback: return as-is
-
+    if _core_html_to_text is not None:
+        return _core_html_to_text(html)
+    # Fallback: basic tag stripping via regex
     import re
-
-    text = extractor.get_text()
+    text = re.sub(r"<[^>]+>", "", html)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -348,6 +320,50 @@ def _read_local_file(path: Path) -> str:
         return real.read_text("utf-8")
     except UnicodeDecodeError:
         return real.read_text("latin-1")
+
+
+def _offer_trafilatura_if_missing() -> None:
+    """Prompt user to install trafilatura if not available (best-effort)."""
+    try:
+        import trafilatura  # noqa: F401
+    except ImportError:
+        import sys as _sys
+        import typer as _typer
+
+        if _typer.confirm(
+            tr_multi(
+                "Ĉu instali trafilatura (A-core[web]) por pli bona "
+                "enhavo-eltiro el retpaĝoj?",
+                "Install trafilatura (A-core[web]) for better "
+                "web page content extraction?",
+                "Installer trafilatura (A-core[web]) pour une meilleure "
+                "extraction du contenu web ?",
+            ),
+            default=True,
+        ):
+            info(tr_multi(
+                "Instalas trafilatura...",
+                "Installing trafilatura...",
+                "Installation de trafilatura...",
+            ))
+            try:
+                import subprocess
+                subprocess.check_call(
+                    [_sys.executable, "-m", "pip", "install", "trafilatura"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.STDOUT,
+                )
+                success(tr_multi(
+                    "trafilatura instalita. Rekomencu la ordon por uzi ghin.",
+                    "trafilatura installed. Restart the command to use it.",
+                    "trafilatura installé. Redémarrez la commande pour l'utiliser.",
+                ))
+            except Exception as exc:
+                warning(tr_multi(
+                    f"Ne eblis instali trafilatura: {exc}",
+                    f"Could not install trafilatura: {exc}",
+                    f"Impossible d'installer trafilatura : {exc}",
+                ))
 
 
 def generi(
@@ -507,6 +523,11 @@ def generi(
                 "Réinstallez : uv pip install -e A-core --no-deps",
             ))
             raise typer.Exit(1)
+
+        # Offer trafilatura for better extraction (optional)
+        if _core_html_to_text is not None:
+            _offer_trafilatura_if_missing()
+
         try:
             info(tr_multi(
                 f"Legas URL: {ligilo}",
