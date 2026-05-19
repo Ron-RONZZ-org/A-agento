@@ -7,12 +7,13 @@ Functions:
 """
 
 import json
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Optional
 
 import typer
 
-from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard, confirm_action
+from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard
 from A_agento.commands._helpers import get_provider_or_exit
 
 # Lazy import: A.core.http may not be available on older A-core installations.
@@ -232,6 +233,67 @@ def _build_context_block(topic: str, max_entries: int = 20) -> str:
 
 
 _MAX_FILE_BYTES = 5_000_000
+_MAX_CONTEXT_CHARS = 50_000
+
+
+class _TextExtractor(HTMLParser):
+    """HTML parser that extracts plain text, removing tags, scripts, and styles."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._parts: list[str] = []
+        self._skip = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in ("script", "style", "noscript"):
+            self._skip = True
+        if tag in ("p", "br", "div", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6"):
+            self._parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in ("script", "style", "noscript"):
+            self._skip = False
+        if tag in ("p", "div", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6"):
+            self._parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if not self._skip:
+            self._parts.append(data)
+
+    def get_text(self) -> str:
+        return "".join(self._parts)
+
+
+def _html_to_text(html: str) -> str:
+    """Strip HTML tags and return plain text.
+
+    Uses stdlib ``HTMLParser`` — no external dependencies.
+    ``<script>``, ``<style>``, ``<noscript>`` blocks are removed entirely.
+    Block-level tags insert newlines for readability.
+    Multiple blank lines are collapsed to at most two.
+    """
+    extractor = _TextExtractor()
+    try:
+        extractor.feed(html)
+        extractor.close()
+    except Exception:
+        return html  # fallback: return as-is
+
+    import re
+
+    text = extractor.get_text()
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _truncate_context(text: str, source_label: str) -> str:
+    """Truncate *text* to ``_MAX_CONTEXT_CHARS``, appending a notice if cut."""
+    if len(text) <= _MAX_CONTEXT_CHARS:
+        return f"## {source_label}\n\n{text}"
+    return (
+        f"## {source_label}\n\n{text[:_MAX_CONTEXT_CHARS]}"
+        f"\n\n[... context truncated to {_MAX_CONTEXT_CHARS} characters ...]"
+    )
 
 
 def _read_local_file(path: Path) -> str:
@@ -452,12 +514,9 @@ def generi(
                 f"Lecture de l'URL : {ligilo}",
             ))
             fetched = _fetch_text(ligilo)
-            max_preview = 2048
-            preview_text = fetched[:max_preview]
-            if len(fetched) > max_preview:
-                preview_text += "\n[... content truncated ...]"
+            text_content = _html_to_text(fetched)
             context_parts.append(
-                f"## Content from URL: {ligilo}\n\n{preview_text}"
+                _truncate_context(text_content, f"Content from URL: {ligilo}")
             )
         except Exception as e:
             error(tr_multi(
@@ -470,12 +529,8 @@ def generi(
     if dosiero:
         try:
             dosiero_content = _read_local_file(dosiero)
-            max_preview = 2048
-            preview_text = dosiero_content[:max_preview]
-            if len(dosiero_content) > max_preview:
-                preview_text += "\n[... content truncated ...]"
             context_parts.append(
-                f"## Content from file: {dosiero}\n\n{preview_text}"
+                _truncate_context(dosiero_content, f"Content from file: {dosiero}")
             )
         except Exception as e:
             error(tr_multi(
