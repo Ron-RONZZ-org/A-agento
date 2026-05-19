@@ -13,8 +13,14 @@ from typing import Optional
 import typer
 
 from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard
-from A.core.http import fetch_text
 from A_agento.commands._helpers import get_provider_or_exit
+
+# Lazy import: A.core.http may not be available on older A-core installations.
+_fetch_text = None  # type: ignore
+try:
+    from A.core.http import fetch_text as _fetch_text
+except ImportError:
+    pass
 from A_agento.tools import generate_with_tools, ENCIK_TOOLS
 from A_agento.prompt_loader import load_prompt
 
@@ -425,13 +431,23 @@ def generi(
     # ── Build context from --ligilo / --dosiero ──────────────────────────
     context_parts: list[str] = []
     if ligilo:
+        if _fetch_text is None:
+            error(tr_multi(
+                "--ligilo postulas A-core version kun http-modulo. "
+                "Bonvolu ĝisdatigi: uv pip install -U A-core",
+                "--ligilo requires A-core version with http module. "
+                "Please update: uv pip install -U A-core",
+                "--ligilo nécessite une version de A-core avec le module http. "
+                "Mettez à jour : uv pip install -U A-core",
+            ))
+            raise typer.Exit(1)
         try:
             info(tr_multi(
                 f"Legas URL: {ligilo}",
                 f"Fetching URL: {ligilo}",
                 f"Lecture de l'URL : {ligilo}",
             ))
-            fetched = fetch_text(ligilo)
+            fetched = _fetch_text(ligilo)
             max_preview = 2048
             preview_text = fetched[:max_preview]
             if len(fetched) > max_preview:
