@@ -118,6 +118,8 @@ Use `agordi default <provider>` to set a provider to `prioritato=0`.
 |---------|---------|
 | `agento generi <prompto> --formato enc` | Generate .enc knowledge entries with AI |
 | `agento generi --formato enc --verbose` | Show full LLM conversation (prompts, reasoning, tool calls) |
+| `agento generi --ligilo <URL>` | Attach web page as context (LLM reads it) |
+| `agento generi --dosiero <path>` | Attach local file as context (LLM reads it) |
 
 ### Prompt Files
 
@@ -151,10 +153,10 @@ Available prompt files:
 | `extract_actions_template` | `agu` | `{sender}`, `{subject}`, `{body}` |
 | `confirm_action_template` | Action confirmation | `{action_type}`, `{action_title}`, `{action_details}` |
 | `style_section_template` | Style injection | `{style_examples}` |
-| `generi_txt` | `generi --formato txt` | `{title_line}`, `{prompto}` |
-| `generi_md` | `generi --formato md` | `{title_line}`, `{prompto}` |
-| `generi_json` | `generi --formato json` | `{title_line}`, `{prompto}` |
-| `generi_enc` | `generi --formato enc` | `{title_line}`, `{prompto}` |
+| `generi_txt` | `generi --formato txt` | `{title_line}`, `{context}`, `{prompto}` |
+| `generi_md` | `generi --formato md` | `{title_line}`, `{context}`, `{prompto}` |
+| `generi_json` | `generi --formato json` | `{title_line}`, `{context}`, `{prompto}` |
+| `generi_enc` | `generi --formato enc` | `{title_line}`, `{context}`, `{prompto}` |
 
 Prompts are loaded on first use and cached in memory. Changes take effect on next A-agento invocation.
 
