@@ -12,7 +12,7 @@ from typing import Optional
 
 import typer
 
-from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard
+from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard, confirm_action
 from A_agento.commands._helpers import get_provider_or_exit
 
 # Lazy import: A.core.http may not be available on older A-core installations.
@@ -148,7 +148,7 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
 
     while True:
         if path.exists():
-            overwrite = _typer.confirm(
+            overwrite = confirm_action(
                 tr_multi(
                     f"Dosiero {path} jam ekzistas. Anstataŭigi?",
                     f"File {path} already exists. Overwrite?",
@@ -156,21 +156,25 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
                 ),
                 default=False,
             )
-            if not overwrite:  # explicit no: ask for alternative
-                prompt_msg = tr_multi(
-                    "Alternativa vojo (malplena por nuligi): ",
-                    "Alternative path (empty to cancel): ",
-                    "Chemin alternatif (vide pour annuler) : ",
-                )
-                alt = _typer.prompt(prompt_msg, default="").strip()
-            if not alt:
-                info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
-                return None
-            path = Path(alt).expanduser().resolve()
-            path.parent.mkdir(parents=True, exist_ok=True)
-            continue
+            if not overwrite:
+                # User said no: ask for alternative path
+                alt = _typer.prompt(
+                    tr_multi(
+                        "Alternativa vojo (malplena por nuligi): ",
+                        "Alternative path (empty to cancel): ",
+                        "Chemin alternatif (vide pour annuler) : ",
+                    ),
+                    default="",
+                ).strip()
+                if not alt:
+                    info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
+                    return None
+                path = Path(alt).expanduser().resolve()
+                path.parent.mkdir(parents=True, exist_ok=True)
+                continue
+            # overwrite=True: fall through to write
 
-        # Write file step by step with stderr trace
+        # Write file
         _sys.stderr.write(f"[TRACE] path.write_text start len={len(content)}\n")
         _sys.stderr.flush()
         try:
