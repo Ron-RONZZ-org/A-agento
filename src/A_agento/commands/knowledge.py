@@ -438,11 +438,11 @@ def generi(
         if _fetch_text is None:
             error(tr_multi(
                 "--ligilo postulas A-core version kun http-modulo. "
-                "Bonvolu ĝisdatigi: uv pip install -U A-core",
+                "Bonvolu reinstali: uv pip install -e A-core --no-deps",
                 "--ligilo requires A-core version with http module. "
-                "Please update: uv pip install -U A-core",
+                "Reinstall from local source: uv pip install -e A-core --no-deps",
                 "--ligilo nécessite une version de A-core avec le module http. "
-                "Mettez à jour : uv pip install -U A-core",
+                "Réinstallez : uv pip install -e A-core --no-deps",
             ))
             raise typer.Exit(1)
         try:
