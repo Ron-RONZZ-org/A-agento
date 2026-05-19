@@ -98,5 +98,6 @@ Omit inline semantic links for entities you couldn't find.
 If you have searched 5+ times total across all entities and still lack data,
 stop all searching and generate the entry now with what you know.
 
+{context}
 Topic: {prompto}
 Generate directly the .enc content. No word padding. No extra explanation.

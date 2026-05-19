@@ -12,7 +12,8 @@ from typing import Optional
 
 import typer
 
-from A import tr, tr_multi, info, error, success, copy_to_clipboard
+from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard
+from A.core.http import fetch_text
 from A_agento.commands._helpers import get_provider_or_exit
 from A_agento.tools import generate_with_tools, ENCIK_TOOLS
 from A_agento.prompt_loader import load_prompt
@@ -220,6 +221,63 @@ def _build_context_block(topic: str, max_entries: int = 20) -> str:
         return ""
 
 
+_MAX_FILE_BYTES = 5_000_000
+
+
+def _read_local_file(path: Path) -> str:
+    """Read a local file with path traversal protection and size limit.
+
+    Args:
+        path: Path to the file to read.
+
+    Returns:
+        File contents as decoded text.
+
+    Raises:
+        ValueError: If file exceeds size limit or cannot be read.
+    """
+    real = path.expanduser().resolve()
+
+    # Warn on potentially sensitive paths
+    sensitive_parents: list[Path] = [
+        Path.home() / ".ssh",
+        Path("/etc"),
+        Path("/proc"),
+        Path("/sys"),
+    ]
+    for sp in sensitive_parents:
+        try:
+            if sp in real.parents or real == sp:
+                warning(tr_multi(
+                    f"Atentu: legas eble sentivan dosieron {path}",
+                    f"Warning: reading potentially sensitive file {path}",
+                    f"Attention : lecture d'un fichier potentiellement sensible {path}",
+                ))
+                break
+        except (OSError, ValueError):
+            continue
+
+    # Size check before reading
+    try:
+        sz = real.stat().st_size
+    except OSError as e:
+        raise ValueError(f"Cannot stat file: {e}")
+    if sz > _MAX_FILE_BYTES:
+        raise ValueError(
+            tr_multi(
+                f"Dosiero tro granda ({sz} bajtoj). Maksimumo: {_MAX_FILE_BYTES} bajtoj.",
+                f"File too large ({sz} bytes). Maximum: {_MAX_FILE_BYTES} bytes.",
+                f"Fichier trop volumineux ({sz} octets). Maximum : {_MAX_FILE_BYTES} octets.",
+            )
+        )
+
+    # Read with encoding fallback
+    try:
+        return real.read_text("utf-8")
+    except UnicodeDecodeError:
+        return real.read_text("latin-1")
+
+
 def generi(
     prompto: str = typer.Argument(
         ...,
@@ -301,6 +359,26 @@ def generi(
             "Appuyez sur 'x' à tout moment pour corriger. À utiliser avec --detala.",  # fr
         ),
     ),
+    ligilo: Optional[str] = typer.Option(
+        None,
+        "--ligilo",
+        "-l",
+        help=tr_multi(
+            "URL de retpagho por kunteksto (LLM legos ghin)",  # eo
+            "Web page URL to attach as context (LLM will read it)",  # en
+            "URL de page Web à attacher comme contexte (le LLM la lira)",  # fr
+        ),
+    ),
+    dosiero: Optional[Path] = typer.Option(
+        None,
+        "--dosiero",
+        "-D",
+        help=tr_multi(
+            "Loka dosiero por kunteksto (LLM legos ghin)",  # eo
+            "Local file to attach as context (LLM will read it)",  # en
+            "Fichier local à attacher comme contexte (le LLM le lira)",  # fr
+        ),
+    ),
 ) -> None:
     """Generate content with AI.
 
@@ -311,6 +389,9 @@ def generi(
     - json: structured JSON
     - enc: encik knowledge entry format (with DB lookup for links)
 
+    Use --ligilo or --dosiero to provide the LLM with external context
+    (a web page or local file) to base the generation on.
+
     If --konservi is given, saves to file for manual review.
     For .enc format, the AI can search your encik database for related
     entries to create proper links with real UUIDs.
@@ -319,6 +400,9 @@ def generi(
         agento generi "Explain quantum computing"
         agento generi "macOS" --formato enc
         agento generi "Notes" --formato md --konservi notes.md
+        agento generi "Summarise this" --ligilo "https://example.com/article"
+        agento generi "Translate this" --dosiero ~/doc.txt
+        agento generi "Compare sources" --ligilo "https://a.com" --dosiero ~/notes.md
         agento generi "Python" --formato enc --konservi eligo.enc
     """
     valid_formats = ("txt", "md", "json", "enc")
@@ -338,6 +422,51 @@ def generi(
         provider._max_tokens = 16384
     title_line = f"Title: {titolo}" if titolo else ""
 
+    # ── Build context from --ligilo / --dosiero ──────────────────────────
+    context_parts: list[str] = []
+    if ligilo:
+        try:
+            info(tr_multi(
+                f"Legas URL: {ligilo}",
+                f"Fetching URL: {ligilo}",
+                f"Lecture de l'URL : {ligilo}",
+            ))
+            fetched = fetch_text(ligilo)
+            max_preview = 2048
+            preview_text = fetched[:max_preview]
+            if len(fetched) > max_preview:
+                preview_text += "\n[... content truncated ...]"
+            context_parts.append(
+                f"## Content from URL: {ligilo}\n\n{preview_text}"
+            )
+        except Exception as e:
+            error(tr_multi(
+                f"Ne eblas legi URL {ligilo}: {e}",
+                f"Cannot fetch URL {ligilo}: {e}",
+                f"Impossible de lire l'URL {ligilo} : {e}",
+            ))
+            raise typer.Exit(1) from e
+
+    if dosiero:
+        try:
+            dosiero_content = _read_local_file(dosiero)
+            max_preview = 2048
+            preview_text = dosiero_content[:max_preview]
+            if len(dosiero_content) > max_preview:
+                preview_text += "\n[... content truncated ...]"
+            context_parts.append(
+                f"## Content from file: {dosiero}\n\n{preview_text}"
+            )
+        except Exception as e:
+            error(tr_multi(
+                f"Ne eblas legi dosieron {dosiero}: {e}",
+                f"Cannot read file {dosiero}: {e}",
+                f"Impossible de lire le fichier {dosiero} : {e}",
+            ))
+            raise typer.Exit(1)
+
+    context_str = "\n\n".join(context_parts)
+
     info(tr_multi(
         f"Generas enhavon ({formato})...",  # eo
         f"Generating content ({formato})...",  # en
@@ -348,7 +477,7 @@ def generi(
         prompt_text = _get_format_prompt(formato)
         if formato == "enc":
             prompt = prompt_text.format(
-                title_line=title_line, prompto=prompto,
+                title_line=title_line, prompto=prompto, context=context_str,
             )
             # Warm context: pre-populate with existing entries relevant to the topic
             context_block = _build_context_block(prompto)
@@ -358,7 +487,7 @@ def generi(
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose, interject=interjekti)
             content = _clean_enc_output(content)
         else:
-            prompt = prompt_text.format(title_line=title_line, prompto=prompto)
+            prompt = prompt_text.format(title_line=title_line, prompto=prompto, context=context_str)
             content = provider.generate(prompt)
     except Exception as e:
         error(
