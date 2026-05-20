@@ -23,6 +23,29 @@ from A_agento.tools.years import (
 from A_agento.tools.cleaners import _looks_like_raw_tool_output
 
 
+_SNIPPET_CHARS = 200  # chars of first/last snippet shown in verbose mode
+
+
+def _summarize_content(content: str) -> str:
+    """Format content for verbose display: full if short, else size + snippets.
+
+    Args:
+        content: The message content to display.
+
+    Returns:
+        Formatted string for terminal output.
+    """
+    size = len(content)
+    if size <= _SNIPPET_CHARS * 2:
+        return content
+    first = content[:_SNIPPET_CHARS].replace("\n", "\\n")
+    last = content[-_SNIPPET_CHARS:].replace("\n", "\\n")
+    return (
+        f"📎 {size:,} chars  —  first {_SNIPPET_CHARS}: \"{first}\""
+        f"\n  …  last {_SNIPPET_CHARS}:  \"{last}\""
+    )
+
+
 def execute_tool_call(tool_call: ToolCall) -> str:
     """Execute a tool call and return the result as JSON string.
 
@@ -146,9 +169,9 @@ def generate_with_tools(
             rc = msg.get("reasoning_content", "")
             _v(f"\n── [{role}] ──")
             if content:
-                _v(content[:8000])
+                _v(_summarize_content(content))
             if rc:
-                _v(f"\n[Reasoning]: {rc[:1000]}")
+                _v(f"\n[Reasoning]: {_summarize_content(rc)}")
 
     if not provider.supports_tools:
         return _fallback_with_context(provider, messages, tools)
@@ -168,9 +191,9 @@ def generate_with_tools(
 
             _v(f"\n── [ASSISTANT (turn {turn+1})] ──")
             if response.content:
-                _v(response.content[:8000])
+                _v(_summarize_content(response.content))
             if response.reasoning_content:
-                _v(f"\n[Reasoning]: {response.reasoning_content[:4000]}")
+                _v(f"\n[Reasoning]: {_summarize_content(response.reasoning_content)}")
             if response.tool_calls:
                 for tc in response.tool_calls:
                     _v(f"\n  TOOL CALL: {tc.function.get('name', '?')}")
