@@ -605,6 +605,13 @@ def generi(
                     "content": context_str,
                     "_display_hint": "external_context",
                 })
+                # Context summary visible at bottom of stderr (never scrolled off)
+                context_preview = context_str[:120].replace("\n", " ")
+                info(tr_multi(
+                    f"📎 Kunteksto: {len(context_str)} signoj — {context_preview}",
+                    f"📎 Context: {len(context_str)} chars — {context_preview}",
+                    f"📎 Contexte : {len(context_str)} caractères — {context_preview}",
+                ))
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose, interject=interjekti)
             content = _clean_enc_output(content)
         else:
