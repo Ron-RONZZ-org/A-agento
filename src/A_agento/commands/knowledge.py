@@ -348,22 +348,39 @@ def _offer_trafilatura_if_missing() -> None:
             ))
             try:
                 import subprocess
-                subprocess.check_call(
-                    [_sys.executable, "-m", "pip", "install", "trafilatura"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.STDOUT,
-                )
-                success(tr_multi(
-                    "trafilatura instalita. Rekomencu la ordon por uzi ghin.",
-                    "trafilatura installed. Restart the command to use it.",
-                    "trafilatura installé. Redémarrez la commande pour l'utiliser.",
-                ))
-            except Exception as exc:
+                import sys as _sys
+
+                # Venv-aware fallback chain (from AGENTS.md policy)
+                installers = [
+                    ("uv pip", ["uv", "pip", "install", "trafilatura"]),
+                    ("pip", ["pip", "install", "trafilatura"]),
+                    ("python3 -m pip", ["python3", "-m", "pip", "install", "trafilatura"]),
+                    (f"{_sys.executable} -m pip", [_sys.executable, "-m", "pip", "install", "trafilatura"]),
+                ]
+                for label, cmd in installers:
+                    try:
+                        subprocess.check_call(
+                            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        )
+                        success(tr_multi(
+                            "trafilatura instalita. Rekomencu la ordon por uzi ghin.",
+                            "trafilatura installed. Restart the command to use it.",
+                            "trafilatura installé. Réexécutez la commande pour l'utiliser.",
+                        ))
+                        return
+                    except (FileNotFoundError, subprocess.CalledProcessError):
+                        continue
+
                 warning(tr_multi(
-                    f"Ne eblis instali trafilatura: {exc}",
-                    f"Could not install trafilatura: {exc}",
-                    f"Impossible d'installer trafilatura : {exc}",
+                    "Ne eblis instali trafilatura per iu ajn metodo. "
+                    "Provu permane: uv pip install trafilatura",
+                    "Could not install trafilatura via any method. "
+                    "Try manually: uv pip install trafilatura",
+                    "Impossible d'installer trafilatura. "
+                    "Essayez manuellement : uv pip install trafilatura",
                 ))
+            except Exception:
+                pass  # Best-effort only
 
 
 def generi(
