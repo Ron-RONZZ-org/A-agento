@@ -37,7 +37,7 @@ encik = "A_agento.registration:get_encik_ai_app"
 packages = ["src/A_agento"]
 
 [tool.uv.sources]
-a-core = { path = "../A-core" }
+a-core = { path = "../A-core", editable = true }
 
 [tool.poetry]
 name = "A-agento"
