@@ -117,7 +117,7 @@ Use `agordi default <provider>` to set a provider to `prioritato=0`.
 | Command | Purpose |
 |---------|---------|
 | `agento generi <prompto> --formato enc` | Generate .enc knowledge entries with AI |
-| `agento generi --formato enc --verbose` | Show full LLM conversation (prompts, reasoning, tool calls) |
+| `agento generi --formato enc --verbose` | Show LLM conversation summary (size + first/last snippets per message) |
 | `agento generi --ligilo <URL>` | Attach web page as context (LLM reads it) |
 | `agento generi --dosiero <path>` | Attach local file as context (LLM reads it) |
 
