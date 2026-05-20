@@ -47,6 +47,67 @@ class TestCleanEncOutput:
         assert 'difino.eo' in result
 
 
+class TestResolveUniquePath:
+    """Tests for _resolve_unique_path."""
+
+    def test_no_conflict(self, tmp_path):
+        """Path that doesn't exist is returned as-is."""
+        from A_agento.commands.knowledge import _resolve_unique_path
+        p = tmp_path / "test.enc"
+        assert _resolve_unique_path(p) == p
+
+    def test_appends_number(self, tmp_path):
+        """Existing file gets .1 suffix."""
+        from A_agento.commands.knowledge import _resolve_unique_path
+        p = tmp_path / "test.enc"
+        p.write_text("original")
+        result = _resolve_unique_path(p)
+        assert result == tmp_path / "test.1.enc"
+        assert not result.exists()
+
+    def test_increments_number(self, tmp_path):
+        """Multiple conflicts increment .1 → .2."""
+        from A_agento.commands.knowledge import _resolve_unique_path
+        p = tmp_path / "test.enc"
+        p.write_text("v1")
+        (tmp_path / "test.1.enc").write_text("v2")
+        result = _resolve_unique_path(p)
+        assert result == tmp_path / "test.2.enc"
+
+    def test_preserves_extension(self, tmp_path):
+        """Extension stays .txt, number goes before it."""
+        from A_agento.commands.knowledge import _resolve_unique_path
+        p = tmp_path / "doc.txt"
+        p.write_text("original")
+        result = _resolve_unique_path(p)
+        assert result.suffix == ".txt"
+        assert result.stem == "doc.1"
+
+
+class TestSaveToFile:
+    """Tests for _save_to_file."""
+
+    def test_saves_new_file(self, tmp_path):
+        """File that doesn't exist is saved directly."""
+        from A_agento.commands.knowledge import _save_to_file
+        p = tmp_path / "out.enc"
+        result = _save_to_file(p, "content")
+        assert result == p
+        assert p.read_text() == "content"
+
+    def test_auto_renames_on_conflict(self, tmp_path):
+        """Existing file triggers auto-rename to .1."""
+        from A_agento.commands.knowledge import _save_to_file
+        p = tmp_path / "out.enc"
+        p.write_text("old")
+        result = _save_to_file(p, "new content")
+        assert result != p
+        assert result == tmp_path / "out.1.enc"
+        assert result.read_text() == "new content"
+        # Original file is preserved
+        assert p.read_text() == "old"
+
+
 class TestReadLocalFile:
     """Tests for _read_local_file."""
 

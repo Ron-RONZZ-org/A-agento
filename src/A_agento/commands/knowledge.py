@@ -135,12 +135,39 @@ def _clean_enc_output(content: str) -> str:
     return '\n'.join(lines).strip()
 
 
-def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
-    """Save generated content to a file, showing confirmation.
+def _resolve_unique_path(path: Path) -> Path:
+    """Return *path* if it doesn't exist, or a numbered variant.
 
-    If the file already exists and user declines overwrite,
-    prompts for an alternative path. Loops until a valid path
-    is provided or user cancels (Ctrl+C / empty input).
+    Appends ``.1``, ``.2``, etc. before the extension to avoid
+    overwriting existing files.  Never prompts interactively.
+
+    Examples::
+
+        a.enc            → a.enc       (no conflict)
+        a.enc            → a.1.enc     (conflict)
+        a.1.enc          → a.1.1.enc   (conflict)
+    """
+    if not path.exists():
+        return path
+    stem = path.stem
+    suffix = path.suffix
+    parent = path.parent
+    for n in range(1, 1000):
+        candidate = parent / f"{stem}.{n}{suffix}"
+        if not candidate.exists():
+            return candidate
+    # 999 files — extremely unlikely. Fall back to timestamp.
+    from datetime import datetime
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return parent / f"{stem}.{ts}{suffix}"
+
+
+def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
+    """Save generated content to a file, auto-resolving conflicts.
+
+    If the file already exists, a numbered suffix is appended
+    automatically (never prompts interactively — avoids Rich Console
+    stdout conflicts with stdin-based prompts).
 
     Args:
         path: Output file path
@@ -148,63 +175,36 @@ def _save_to_file(path: Path, content: str, titolo: str = "") -> Path | None:
         titolo: Optional title for user feedback
 
     Returns:
-        The final path the file was saved to, or None if cancelled.
+        The final path the file was saved to, or None on error.
     """
     import sys as _sys
-    import typer as _typer
 
-    while True:
-        if path.exists():
-            overwrite = _typer.confirm(
-                tr_multi(
-                    f"Dosiero {path} jam ekzistas. Anstataŭigi?",
-                    f"File {path} already exists. Overwrite?",
-                    f"Le fichier {path} existe déjà. Remplacer ?",
-                ),
-                default=False,
-            )
-            if not overwrite:
-                # User said no: ask for alternative path
-                alt = _typer.prompt(
-                    tr_multi(
-                        "Alternativa vojo (malplena por nuligi): ",
-                        "Alternative path (empty to cancel): ",
-                        "Chemin alternatif (vide pour annuler) : ",
-                    ),
-                    default="",
-                ).strip()
-                if not alt:
-                    info(tr_multi("Nuligita.", "Cancelled.", "Annulé."))
-                    return None
-                path = Path(alt).expanduser().resolve()
-                path.parent.mkdir(parents=True, exist_ok=True)
-                continue
-            # overwrite=True: fall through to write
+    final_path = _resolve_unique_path(path)
+    final_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Write file
-        _sys.stderr.write(f"[TRACE] path.write_text start len={len(content)}\n")
+    if final_path != path:
+        info(tr_multi(
+            f"{path} jam ekzistas. Konservas kiel {final_path}",
+            f"{path} already exists. Saving as {final_path}",
+            f"{path} existe déjà. Enregistre comme {final_path}",
+        ))
+
+    try:
+        with open(str(final_path), "w", encoding="utf-8") as _f:
+            _f.write(content)
+    except Exception as e:
+        _sys.stderr.write(f"[SAVE_ERROR] {type(e).__name__}: {e}\n")
         _sys.stderr.flush()
-        try:
-            with open(str(path), "w", encoding="utf-8") as _f:
-                _f.write(content)
-            _sys.stderr.write("[TRACE] path.write_text done\n")
-            _sys.stderr.flush()
-        except Exception as e:
-            _sys.stderr.write(f"[TRACE] write failed: {e}\n")
-            _sys.stderr.flush()
-            raise
-        _sys.stderr.write("[TRACE] calling success()\n")
-        _sys.stderr.flush()
-        success(
-            tr_multi(
-                f"Konservita al {path}",
-                f"Saved to {path}",
-                f"Enregistré dans {path}",
-            )
+        raise
+
+    success(
+        tr_multi(
+            f"Konservita al {final_path}",
+            f"Saved to {final_path}",
+            f"Enregistré dans {final_path}",
         )
-        _sys.stderr.write("[TRACE] returning\n")
-        _sys.stderr.flush()
-        return path
+    )
+    return final_path
 
 
 def _build_context_block(topic: str, max_entries: int = 20) -> str:
@@ -638,9 +638,6 @@ def generi(
 
     # Save to file if requested (human-in-the-loop: user reviews first)
     if konservi:
-        import sys as _sys
-        _sys.stderr.write(f"[TRACE] _save_to_file called with konservi={konservi} content_len={len(content)} formato={formato}\n")
-        _sys.stderr.flush()
         # Auto-append file extension if missing
         ext_map = {"txt": ".txt", "md": ".md", "json": ".json", "enc": ".enc"}
         suffix = ext_map.get(formato, "")
