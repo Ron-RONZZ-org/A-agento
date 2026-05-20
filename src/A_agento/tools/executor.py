@@ -167,9 +167,13 @@ def generate_with_tools(
             role = msg.get("role", "?").upper()
             content = msg.get("content", "")
             rc = msg.get("reasoning_content", "")
+            display_hint = msg.get("_display_hint", "")
             _v(f"\n── [{role}] ──")
             if content:
-                _v(_summarize_content(content))
+                if display_hint == "external_context":
+                    _v(_summarize_content(content))
+                else:
+                    _v(content)
             if rc:
                 _v(f"\n[Reasoning]: {_summarize_content(rc)}")
 
@@ -180,6 +184,13 @@ def generate_with_tools(
         from A import info as _hint
 
         _hint("Press 'x' at any time to pause and type a correction")
+
+    # Strip display-only metadata before sending to LLM
+    _clean_messages = []
+    for m in messages:
+        clean = {k: v for k, v in m.items() if not k.startswith("_")}
+        _clean_messages.append(clean)
+    messages = _clean_messages
 
     raw_output_retries = 0
 

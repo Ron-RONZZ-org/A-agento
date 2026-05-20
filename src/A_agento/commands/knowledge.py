@@ -589,14 +589,22 @@ def generi(
     try:
         prompt_text = _get_format_prompt(formato)
         if formato == "enc":
+            # Build base prompt without external context (it becomes a separate message)
             prompt = prompt_text.format(
-                title_line=title_line, prompto=prompto, context=context_str,
+                title_line=title_line, prompto=prompto, context="",
             )
             # Warm context: pre-populate with existing entries relevant to the topic
             context_block = _build_context_block(prompto)
             if context_block:
                 prompt += f"\n\n# Existing entries you can reference directly\n{context_block}"
             messages = [{"role": "user", "content": prompt}]
+            # Append external context (--ligilo/--dosiero) as a separate message
+            if context_str:
+                messages.append({
+                    "role": "user",
+                    "content": context_str,
+                    "_display_hint": "external_context",
+                })
             content = generate_with_tools(provider, messages, tools=ENCIK_TOOLS, verbose=verbose, interject=interjekti)
             content = _clean_enc_output(content)
         else:
