@@ -54,9 +54,9 @@ agento traduki doc.txt -c eo -K tradukita.md
 agento generi "quantum computing" --formato md
 
 # Enhance existing text
-agento plibonigi draft.txt -i "make more formal"
-cat notes.txt | agento plibonigi -i "expand with examples"
-agento plibonigi entry.enc -f enc -i "add biographical details"
+agento plibonigi draft.txt "make more formal"
+cat notes.txt | agento plibonigi --instrukcio "expand with examples"
+agento plibonigi entry.enc "add biographical details" -f enc
 
 # Summarize recent emails
 agento resumu

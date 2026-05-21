@@ -143,10 +143,12 @@ Use `agordi default <provider>` to set a provider to `prioritato=0`.
 
 | Invocation | Purpose |
 |------------|---------|
-| `plibonigi <INPUT> -i "make more formal"` | Enhance text with instruction |
-| `<text> \| plibonigi -i "simplify"` | Stdin pipe for pipeline use |
-| `plibonigi entry.enc -f enc -i "expand"` | Expand .enc entry with tool-based UUID linking |
-| `plibonigi draft.md --ligilo <URL>` | Enhance with web page as reference |
+| `plibonigi <INPUT> "make more formal"` | Enhance text with instruction as $2 positional |
+| `plibonigi doc.md "expand"` | Format auto-detected from `.md` extension |
+| `<text> \| plibonigi --instrukcio "simplify"` | Stdin pipe with instruction via long flag |
+| `plibonigi entry.enc -f enc "expand"` | Expand .enc entry with tool-based UUID linking |
+| `plibonigi draft.md "expand" --ligilo <URL>` | Enhance with web page as reference |
+| `plibonigi entry.enc -f enc "expand" -i` | Use `-i` for interjection mode (like `generi`) |
 
 ### Prompt Files
 
