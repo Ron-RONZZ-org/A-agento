@@ -62,6 +62,20 @@ def execute_tool_call(tool_call: ToolCall) -> str:
     except json.JSONDecodeError:
         return json.dumps({"error": f"Invalid arguments JSON: {args_raw}"})
 
+    # Defensive: LLMs sometimes send bare values instead of named args
+    if not isinstance(args, dict):
+        # Treat bare string as the primary parameter for the tool
+        if name == "get_encik_entry":
+            return _get_encik_entry(str(args))
+        elif name == "search_encik":
+            return _search_encik(str(args))
+        elif name == "wikidata_property_id":
+            return _lookup_wikidata_property(str(args))
+        elif name in ("ensure_decade", "ensure_century"):
+            fn = _ensure_decade_entry if name == "ensure_decade" else _ensure_century_entry
+            return fn(str(args))
+        return json.dumps({"error": f"Unexpected arguments type: {type(args).__name__}"})
+
     if name == "search_encik":
         return _search_encik(args.get("query", ""))
     elif name == "get_encik_entry":
