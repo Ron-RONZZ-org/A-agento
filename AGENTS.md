@@ -38,7 +38,7 @@ All cross-module imports use try/except with graceful fallback.
 ```
 src/A_agento/
 ├── __init__.py             # exports: app
-├── cli.py                 # Typer app (resumu, respondi, agu, generi, traduki)
+├── cli.py                 # Typer app (resumu, respondi, agu, generi, traduki, plibonigi)
 ├── agordo.py              # Provider config sub-app (default, aldoni, ls, testi)
 ├── stilo.py               # Style sample sub-app (aldoni, listo, forigu, aktiva)
 ├── provider_state.py      # Fallback order management (prioritato-based)
@@ -51,6 +51,7 @@ src/A_agento/
 │   ├── _helpers.py         # Shared helpers (get_provider_or_exit, confirm_action)
 │   ├── email.py            # resumu, respondi, agu
 │   ├── knowledge.py        # generi (text generation)
+│   ├── enhancement.py      # plibonigi (text enhancement)
 │   └── translation.py      # traduki (text translation)
 └── data/
     ├── __init__.py
@@ -123,6 +124,7 @@ Use `agordi default <provider>` to set a provider to `prioritato=0`.
 | Command | Domain | Purpose |
 |---------|--------|---------|
 | `generi` | General | Generate text in various formats (txt, md, json, enc) |
+| `plibonigi` | General | Enhance/expand existing text (txt, md, json, enc) |
 | `traduki` | General | Translate text between languages using LLM |
 | `resumu` | Email | Summarize emails (requires A-lien) |
 | `respondi` | Email | Draft email replies (requires A-lien) |
@@ -136,6 +138,15 @@ Use `agordi default <provider>` to set a provider to `prioritato=0`.
 | `generi --formato enc --verbose` | Show LLM conversation summary |
 | `generi --ligilo <URL>` | Attach web page as context |
 | `generi --dosiero <path>` | Attach local file as context |
+
+#### Notable `plibonigi` variants
+
+| Invocation | Purpose |
+|------------|---------|
+| `plibonigi <INPUT> -i "make more formal"` | Enhance text with instruction |
+| `<text> \| plibonigi -i "simplify"` | Stdin pipe for pipeline use |
+| `plibonigi entry.enc -f enc -i "expand"` | Expand .enc entry with tool-based UUID linking |
+| `plibonigi draft.md --ligilo <URL>` | Enhance with web page as reference |
 
 ### Prompt Files
 
@@ -174,6 +185,8 @@ Available prompt files:
 | `generi_json` | `generi --formato json` | `{title_line}`, `{context}`, `{prompto}` |
 | `generi_enc` | `generi --formato enc` | `{title_line}`, `{context}`, `{prompto}` |
 | `traduki` | `traduki` | `{to_target}`, `{from_source}`, `{text}` |
+| `plibonigi` | `plibonigi` (txt/md/json) | `{original_text}`, `{instruction}`, `{context}`, `{formato}` |
+| `plibonigi_enc` | `plibonigi --formato enc` | `{original_text}`, `{instruction}`, `{context}` |
 
 Prompts are loaded on first use and cached in memory. Changes take effect on next A-agento invocation.
 

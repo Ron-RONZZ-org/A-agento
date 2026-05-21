@@ -1,9 +1,10 @@
 # A-agento — General LLM Interface
 
-A-agento provides the general LLM interface for the A ecosystem — text generation, translation, and AI-powered email assistance.
+A-agento provides the general LLM interface for the A ecosystem — text generation, enhancement, translation, and AI-powered email assistance.
 
 ## Features
 
+- **Text Enhancement**: Enhance or expand existing text (txt, md, json, .enc) via LLM
 - **Text Translation**: Translate text between languages via LLM
 - **Text Generation**: Generate content in txt, md, json, and .enc formats
 - **Email Summarization**: Summarize recent emails using LLM
@@ -52,6 +53,11 @@ agento traduki doc.txt -c eo -K tradukita.md
 # Generate content
 agento generi "quantum computing" --formato md
 
+# Enhance existing text
+agento plibonigi draft.txt -i "make more formal"
+cat notes.txt | agento plibonigi -i "expand with examples"
+agento plibonigi entry.enc -f enc -i "add biographical details"
+
 # Summarize recent emails
 agento resumu
 
@@ -68,6 +74,7 @@ agento agu --uuid <email-uuid>
 |---------|-------------|
 | `traduki` | Translate text between languages |
 | `generi` | Generate content with AI (txt, md, json, enc) |
+| `plibonigi` | Enhance/expand existing text with AI (txt, md, json, enc) |
 | `resumu` | Summarize recent unread emails |
 | `respondu` | Generate smart reply draft |
 | `agu` | Extract actions (calendar, todo, encik) |
