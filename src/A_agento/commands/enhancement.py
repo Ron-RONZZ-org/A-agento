@@ -45,6 +45,9 @@ except ImportError:
 
 
 _SUPPORTED_FORMATS = ("txt", "md", "json", "enc")
+_EXT_TO_FORMAT: dict[str, str] = {
+    ".txt": "txt", ".md": "md", ".json": "json", ".enc": "enc",
+}
 _MAX_CONTEXT_CHARS = 50_000
 
 
@@ -210,6 +213,28 @@ def _resolve_input_text(
     raise typer.Exit(1)
 
 
+def _infer_format_from_input(
+    input_arg: str,
+    dosiero: Path | None,
+) -> str | None:
+    """Infer output format from file extension of the input path.
+
+    Checks ``--dosiero`` first, then the positional argument if it is an
+    existing file.  Returns ``None`` if no file path is found or the
+    extension is not recognised.
+    """
+    path: Path | None = None
+    if dosiero:
+        path = dosiero
+    elif input_arg:
+        candidate = Path(input_arg)
+        if candidate.is_file():
+            path = candidate
+    if path is None:
+        return None
+    return _EXT_TO_FORMAT.get(path.suffix.lower())
+
+
 def _load_prompt_for_format(formato: str) -> str:
     """Load the appropriate prompt template for the given format.
 
@@ -333,24 +358,32 @@ def plibonigi(
             "Texte ou chemin de fichier a ameliorer. Si omis, lit depuis le pipe (stdin).",
         ),
     ),
-    instrukcio: str = typer.Option(
+    instruction: str = typer.Argument(
         "",
-        "--instrukcio",
-        "-i",
         help=tr_multi(
-            "Instrukcioj por plibonigo (ekz: 'pli formala', 'aldonu ekzemplojn')",
-            "Enhancement instructions (e.g. 'more formal', 'add examples')",
-            "Instructions d'amelioration (ex: 'plus formel', 'ajoutez des exemples')",
+            "Instrukcioj por plibonigo (ekz: 'pli formala', 'aldonu ekzemplojn').",
+            "Enhancement instructions (e.g. 'more formal', 'add examples').",
+            "Instructions d'amelioration (ex: 'plus formel', 'ajoutez des exemples').",
         ),
     ),
-    formato: str = typer.Option(
-        "txt",
+    instrukcio_opt: Optional[str] = typer.Option(
+        None,
+        "--instrukcio",
+        hidden=True,
+        help=tr_multi(
+            "Long-forma alternativo por instrukcioj (utila kiam enigo venas de tubo).",
+            "Long-form alternative for instructions (useful when input comes from pipe).",
+            "Alternative longue pour les instructions (utile quand l'entree vient d'un pipe).",
+        ),
+    ),
+    formato: Optional[str] = typer.Option(
+        None,
         "--formato",
         "-f",
         help=tr_multi(
-            "Formato (txt/md/json/enc)",
-            "Format (txt/md/json/enc)",
-            "Format (txt/md/json/enc)",
+            "Formato (txt/md/json/enc). Aûtomate detektita de dosier-sufikso se ne specifita.",
+            "Format (txt/md/json/enc). Auto-detected from file extension if not specified.",
+            "Format (txt/md/json/enc). Auto-detecte depuis l'extension du fichier si non specifie.",
         ),
     ),
     provizanto: Optional[str] = typer.Option(
@@ -394,6 +427,17 @@ def plibonigi(
             "Afficher la conversation complete avec LLM",
         ),
     ),
+    interjekti: bool = typer.Option(
+        False,
+        "--interjekti",
+        "--interject",
+        "-i",
+        help=tr_multi(
+            "Premu 'x' iam ajn por pauxzi kaj korekti. Uzu kun --detala.",
+            "Press 'x' at any time to pause and type a correction. Use with --detala.",
+            "Appuyez sur 'x' a tout moment pour corriger. A utiliser avec --detala.",
+        ),
+    ),
     ligilo: Optional[str] = typer.Option(
         None,
         "--ligilo",
@@ -418,9 +462,9 @@ def plibonigi(
     """Enhance or expand existing text using AI.
 
     Takes existing text (from argument, file, or stdin pipe) and improves it
-    using the configured LLM provider. Use ``--instrukcio`` to specify how
-    the text should be enhanced (e.g. "make more formal", "expand with examples",
-    "simplify for beginners").
+    using the configured LLM provider.  Provide enhancement instructions as
+    the second positional argument (e.g. "make more formal", "expand with
+    examples", "simplify for beginners").
 
     Supports multiple formats:
     - txt: plain text enhancement
@@ -428,24 +472,36 @@ def plibonigi(
     - json: JSON content enhancement (preserves JSON structure)
     - enc: encik knowledge entry expansion (with UUID linking via tools)
 
+    When a file path is provided as input and ``--formato`` is omitted, the
+    format is inferred from the file extension.
+
     Use ``--ligilo`` or ``--dosiero`` to provide the LLM with external context
     (a web page or local file) to reference during enhancement.
 
     Examples::
 
-        agento plibonigi "This text needs improvement" -i "make more formal"
-        agento plibonigi draft.md -i "expand with examples" -K enhanced.md
-        cat notes.txt | agento plibonigi -i "simplify"
-        agento plibonigi entry.enc -i "add biographical details" -f enc
-        agento plibonigi draft.md -i "add citations" -l "https://example.com/source"
+        agento plibonigi "This text needs improvement" "make more formal"
+        agento plibonigi draft.md "expand with examples" -K enhanced.md
+        cat notes.txt | agento plibonigi "simplify"
+        agento plibonigi entry.enc "add biographical details" -f enc
+        agento plibonigi draft.md "add citations" -l "https://example.com/source"
     """
-    valid_formats = _SUPPORTED_FORMATS
-    if formato not in valid_formats:
+    # ── Resolve instruction ─────────────────────────────────────────────
+    # Prefer positional ($2); fall back to --instrukcio (long-form only,
+    # no short flag), which is useful when piping stdin.
+    resolved_instruction = instruction or instrukcio_opt or ""
+
+    # ── Resolve format ──────────────────────────────────────────────────
+    if formato is None:
+        inferred = _infer_format_from_input(input, dosiero)
+        formato = inferred or "txt"
+
+    if formato not in _SUPPORTED_FORMATS:
         error(
             tr_multi(
-                f"Nevalida formato: {formato}. Validaj: {', '.join(valid_formats)}",
-                f"Invalid format: {formato}. Valid: {', '.join(valid_formats)}",
-                f"Format invalide: {formato}. Valides: {', '.join(valid_formats)}",
+                f"Nevalida formato: {formato}. Validaj: {', '.join(_SUPPORTED_FORMATS)}",
+                f"Invalid format: {formato}. Valid: {', '.join(_SUPPORTED_FORMATS)}",
+                f"Format invalide: {formato}. Valides: {', '.join(_SUPPORTED_FORMATS)}",
             ),
         )
         raise typer.Exit(1)
@@ -515,11 +571,12 @@ def plibonigi(
 
     result = enhance_text(
         text=input_text,
-        instruction=instrukcio,
+        instruction=resolved_instruction,
         formato=formato,
         provider_ref=provizanto or "",
         context=context_str,
         verbose=verbose,
+        interject=interjekti,
     )
 
     if not result:

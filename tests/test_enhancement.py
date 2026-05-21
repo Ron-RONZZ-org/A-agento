@@ -35,8 +35,8 @@ class TestPlibonigiHelp:
         result = runner.invoke(app, ["plibonigi", "--help"])
         assert result.exit_code == 0
         assert "plibonigi" in result.output.lower()
-        assert "--instrukcio" in result.output
         assert "--formato" in result.output
+        assert "--interjekti" in result.output
         assert "--konservi" in result.output
         assert "--ligilo" in result.output
         assert "--dosiero" in result.output
@@ -66,7 +66,7 @@ class TestPlibonigiStringInput:
 
     @patch(_PATCH_TARGET)
     def test_with_instruction(self, mock_get_provider):
-        """Enhance with explicit instruction."""
+        """Enhance with explicit instruction (positional)."""
         mock_provider = Mock()
         mock_provider.generate.return_value = "I am writing a formal letter."
         mock_provider.name = "test"
@@ -74,8 +74,7 @@ class TestPlibonigiStringInput:
         mock_get_provider.return_value = mock_provider
 
         result = runner.invoke(app, [
-            "plibonigi", "i'm writing a letter",
-            "-i", "make more formal",
+            "plibonigi", "i'm writing a letter", "make more formal",
         ])
         assert result.exit_code == 0
         assert "I am writing a formal letter." in result.output
@@ -443,8 +442,7 @@ class TestPromptTemplate:
         mock_get_provider.return_value = mock_provider
 
         runner.invoke(app, [
-            "plibonigi", "Some text",
-            "-i", "make more formal",
+            "plibonigi", "Some text", "make more formal",
         ])
         call_args = mock_provider.generate.call_args[0][0]
         assert "make more formal" in call_args
@@ -480,6 +478,159 @@ class TestPromptTemplate:
         call_args = mock_provider.generate.call_args[0][0]
         # Should contain the original text
         assert "Some text" in call_args
+
+
+class TestFormatInference:
+    """Tests for auto-detection of format from file extension."""
+
+    @patch(_PATCH_TARGET)
+    def test_infer_md_from_extension(self, mock_get_provider, tmp_path):
+        """--formato should be inferred as md from .md extension."""
+        mock_provider = Mock()
+        mock_provider.generate.return_value = "# Enhanced"
+        mock_provider.name = "test"
+        mock_provider.model = "test-model"
+        mock_get_provider.return_value = mock_provider
+
+        f = tmp_path / "doc.md"
+        f.write_text("# Original", encoding="utf-8")
+
+        result = runner.invoke(app, [
+            "plibonigi", str(f), "improve",
+        ])
+        assert result.exit_code == 0
+        # Verify md was passed to prompt (format inference worked)
+        call_args = mock_provider.generate.call_args[0][0]
+        assert "md" in call_args or "markdown" in call_args.lower()
+
+    @patch(_PATCH_TARGET)
+    def test_infer_enc_from_extension(self, mock_get_provider, tmp_path):
+        """--formato should be inferred as enc from .enc extension."""
+        mock_provider = Mock()
+        mock_provider.name = "test"
+        mock_provider.model = "test-model"
+        mock_get_provider.return_value = mock_provider
+
+        f = tmp_path / "entry.enc"
+        f.write_text('terminologio.eo = "Test"', encoding="utf-8")
+
+        with patch("A_agento.tools.generate_with_tools") as mock_tools:
+            mock_tools.return_value = 'terminologio.eo = "Test"'
+            result = runner.invoke(app, [
+                "plibonigi", str(f), "expand",
+            ])
+            assert result.exit_code == 0
+            assert mock_tools.called
+
+    @patch(_PATCH_TARGET)
+    def test_explicit_formato_overrides_inference(self, mock_get_provider, tmp_path):
+        """Explicit --formato should override inference from extension."""
+        mock_provider = Mock()
+        mock_provider.generate.return_value = '{"title": "Enhanced"}'
+        mock_provider.name = "test"
+        mock_provider.model = "test-model"
+        mock_get_provider.return_value = mock_provider
+
+        f = tmp_path / "notes.md"
+        f.write_text("# Notes", encoding="utf-8")
+
+        result = runner.invoke(app, [
+            "plibonigi", str(f), "improve",
+            "-f", "json",
+        ])
+        assert result.exit_code == 0
+        # Format should be json, not md
+        call_args = mock_provider.generate.call_args[0][0]
+        assert "json" in call_args.lower()
+
+    def test_infer_format_unknown_extension(self):
+        """Unknown extension should not cause error (falls back to txt)."""
+        from A_agento.commands.enhancement import _infer_format_from_input
+        result = _infer_format_from_input("file.xyz", None)
+        assert result is None
+
+
+class TestInterjekti:
+    """Tests for --interjekti / -i flag."""
+
+    @patch(_PATCH_TARGET)
+    def test_interjekti_flag_with_enc(self, mock_get_provider):
+        """--interjekti / -i should be accepted (enc format uses it via tools)."""
+        mock_provider = Mock()
+        mock_provider.name = "test"
+        mock_provider.model = "test-model"
+        mock_get_provider.return_value = mock_provider
+
+        with patch("A_agento.tools.generate_with_tools") as mock_tools:
+            mock_tools.return_value = 'terminologio.eo = "Test"'
+            result = runner.invoke(app, [
+                "plibonigi", "terminologio.eo = \"Test\"",
+                "-f", "enc",
+                "-i",
+            ])
+            assert result.exit_code == 0
+
+    @patch(_PATCH_TARGET)
+    def test_interjekti_long_form(self, mock_get_provider):
+        """--interjekti long form should work."""
+        mock_provider = Mock()
+        mock_provider.name = "test"
+        mock_provider.model = "test-model"
+        mock_get_provider.return_value = mock_provider
+
+        with patch("A_agento.tools.generate_with_tools") as mock_tools:
+            mock_tools.return_value = 'terminologio.eo = "Test"'
+            result = runner.invoke(app, [
+                "plibonigi", "terminologio.eo = \"Test\"",
+                "-f", "enc",
+                "--interjekti",
+            ])
+            assert result.exit_code == 0
+
+    @patch(_PATCH_TARGET)
+    def test_interjekti_no_conflict_with_instruction(self, mock_get_provider):
+        """-i should be interjekti, not instruction — instruction is positional."""
+        mock_provider = Mock()
+        mock_provider.name = "test"
+        mock_provider.model = "test-model"
+        mock_get_provider.return_value = mock_provider
+
+        with patch("A_agento.tools.generate_with_tools") as mock_tools:
+            mock_tools.return_value = 'terminologio.eo = "Test"'
+            # -i flag should NOT consume the positional instruction
+            result = runner.invoke(app, [
+                "plibonigi", "terminologio.eo = \"Test\"", "expand with details",
+                "-f", "enc",
+                "-i",
+            ])
+            assert result.exit_code == 0
+            # Verify instruction "expand with details" was passed through
+            msg = mock_tools.call_args[0][1][0]["content"]
+            assert "expand with details" in msg
+
+
+class TestPlibonigiStdinDisambiguation:
+    """Tests for stdin+positional disambiguation."""
+
+    @patch(_PATCH_TARGET)
+    def test_stdin_with_instrukcio_option(self, mock_get_provider):
+        """With stdin piping, use --instrukcio for the instruction."""
+        mock_provider = Mock()
+        mock_provider.generate.return_value = "Enhanced from stdin."
+        mock_provider.name = "test"
+        mock_provider.model = "test-model"
+        mock_get_provider.return_value = mock_provider
+
+        # CliRunner input= sets stdin; isatty() returns False for BytesIO
+        result = runner.invoke(app, [
+            "plibonigi",
+            "--instrukcio", "make this formal",
+        ], input="piped content")
+        assert result.exit_code == 0
+        # The --instrukcio value should be the instruction
+        call_args = mock_provider.generate.call_args[0][0]
+        assert "make this formal" in call_args
+        assert "piped content" in call_args
 
 
 class TestPlibonigiLigilo:
