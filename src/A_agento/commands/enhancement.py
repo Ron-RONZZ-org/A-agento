@@ -264,6 +264,7 @@ def enhance_text(
             original_text=text,
             instruction=instruction,
             context="",
+            enc_rules=load_prompt("enc_rules"),
         )
         # Warm context: pre-populate with existing entries related to the content
         search_topic = instruction[:80] if instruction else text[:80]

@@ -592,6 +592,7 @@ def generi(
             # Build base prompt without external context (it becomes a separate message)
             prompt = prompt_text.format(
                 title_line=title_line, prompto=prompto, context="",
+                enc_rules=load_prompt("enc_rules"),
             )
             # Warm context: pre-populate with existing entries relevant to the topic
             context_block = _build_context_block(prompto)
