@@ -183,10 +183,11 @@ Available prompt files:
 | `generi_txt` | `generi --formato txt` | `{title_line}`, `{context}`, `{prompto}` |
 | `generi_md` | `generi --formato md` | `{title_line}`, `{context}`, `{prompto}` |
 | `generi_json` | `generi --formato json` | `{title_line}`, `{context}`, `{prompto}` |
-| `generi_enc` | `generi --formato enc` | `{title_line}`, `{context}`, `{prompto}` |
+| `generi_enc` | `generi --formato enc` | `{title_line}`, `{context}`, `{prompto}`, `{enc_rules}` |
+| `enc_rules` | `generi --formato enc`, `plibonigi --formato enc` | Shared .enc format rules injected via `{enc_rules}` |
 | `traduki` | `traduki` | `{to_target}`, `{from_source}`, `{text}` |
 | `plibonigi` | `plibonigi` (txt/md/json) | `{original_text}`, `{instruction}`, `{context}`, `{formato}` |
-| `plibonigi_enc` | `plibonigi --formato enc` | `{original_text}`, `{instruction}`, `{context}` |
+| `plibonigi_enc` | `plibonigi --formato enc` | `{original_text}`, `{instruction}`, `{context}`, `{enc_rules}` |
 
 Prompts are loaded on first use and cached in memory. Changes take effect on next A-agento invocation.
 
