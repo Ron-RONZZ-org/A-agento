@@ -1,9 +1,11 @@
-# A-agento — AI Email Agent
+# A-agento — General LLM Interface
 
-A-agento provides AI-powered email assistance for the A ecosystem, leveraging LLM providers for summarization, smart reply generation, and action extraction from emails.
+A-agento provides the general LLM interface for the A ecosystem — text generation, translation, and AI-powered email assistance.
 
 ## Features
 
+- **Text Translation**: Translate text between languages via LLM
+- **Text Generation**: Generate content in txt, md, json, and .enc formats
 - **Email Summarization**: Summarize recent emails using LLM
 - **Smart Reply**: Generate draft replies with context awareness
 - **Action Extraction**: Parse emails to suggest calendar events, todos, knowledge entries
@@ -43,6 +45,13 @@ agento agordi default ollama
 ### 3. Run Commands
 
 ```bash
+# Translate text
+agento traduki "Hello world" -c fr
+agento traduki doc.txt -c eo -K tradukita.md
+
+# Generate content
+agento generi "quantum computing" --formato md
+
 # Summarize recent emails
 agento resumu
 
@@ -57,6 +66,8 @@ agento agu --uuid <email-uuid>
 
 | Command | Description |
 |---------|-------------|
+| `traduki` | Translate text between languages |
+| `generi` | Generate content with AI (txt, md, json, enc) |
 | `resumu` | Summarize recent unread emails |
 | `respondu` | Generate smart reply draft |
 | `agu` | Extract actions (calendar, todo, encik) |

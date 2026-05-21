@@ -9,6 +9,7 @@ from A_agento.agordo import agordo_app
 from A_agento.stilo import stilo_app
 from A_agento.commands.email import resumu, respondi, agu
 from A_agento.commands.knowledge import generi
+from A_agento.commands.translation import traduki
 
 app = typer.Typer(
     name="agento",
@@ -86,6 +87,14 @@ app.command(
         "Generer du contenu avec IA",  # fr
     ),
 )(generi)
+app.command(
+    name="traduki",
+    help=tr_multi(
+        "Traduki tekston per AI",  # eo
+        "Translate text with AI",  # en
+        "Traduire du texte avec IA",  # fr
+    ),
+)(traduki)
 
 
 # Make module callable as CLI

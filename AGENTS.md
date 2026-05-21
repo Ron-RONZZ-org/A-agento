@@ -14,10 +14,15 @@ This file extends [root AGENTS.md](../AGENTS.md).
 
 ## Module Purpose
 
-A-agento provides AI-powered email assistance:
-- Email summarization
-- Smart reply draft generation
-- Action extraction (calendar events, todos, knowledge entries)
+A-agento provides the general LLM interface — direct text operations (generation,
+translation) and AI-powered assistance for other A-modules (email, calendar,
+knowledge):
+
+- **General LLM**: text generation (`generi`), text translation (`traduki`)
+- **Email-specific**: summarization (`resumu`), smart reply (`respondi`),
+  action extraction (`agu`) — requires A-lien
+- **Cross-module AI injection**: AI commands injected into A-lien, A-encik
+  via `A.ai_commands` entry points
 
 ## Cross-Module Dependencies
 
@@ -33,7 +38,7 @@ All cross-module imports use try/except with graceful fallback.
 ```
 src/A_agento/
 ├── __init__.py             # exports: app
-├── cli.py                 # Typer app (resumu, respondi, agu, generi)
+├── cli.py                 # Typer app (resumu, respondi, agu, generi, traduki)
 ├── agordo.py              # Provider config sub-app (default, aldoni, ls, testi)
 ├── stilo.py               # Style sample sub-app (aldoni, listo, forigu, aktiva)
 ├── provider_state.py      # Fallback order management (prioritato-based)
@@ -45,7 +50,8 @@ src/A_agento/
 │   ├── __init__.py
 │   ├── _helpers.py         # Shared helpers (get_provider_or_exit, confirm_action)
 │   ├── email.py            # resumu, respondi, agu
-│   └── knowledge.py        # generi (moved from A-encik)
+│   ├── knowledge.py        # generi (text generation)
+│   └── translation.py      # traduki (text translation)
 └── data/
     ├── __init__.py
     ├── storage.py          # SQLite for agent metadata + history + styloj
@@ -112,32 +118,42 @@ Use `agordi default <provider>` to set a provider to `prioritato=0`.
 - `agento agordi` — Provider configuration (default, aldoni, vidi, modifi, forigi, ls, testi)
 - `agento stilo` — Writing style samples (aldoni, ls, forigi, aktiva)
 
-### New Commands
+### Commands
 
-| Command | Purpose |
-|---------|---------|
-| `agento generi <prompto> --formato enc` | Generate .enc knowledge entries with AI |
-| `agento generi --formato enc --verbose` | Show LLM conversation summary (size + first/last snippets per message) |
-| `agento generi --ligilo <URL>` | Attach web page as context (LLM reads it) |
-| `agento generi --dosiero <path>` | Attach local file as context (LLM reads it) |
+| Command | Domain | Purpose |
+|---------|--------|---------|
+| `generi` | General | Generate text in various formats (txt, md, json, enc) |
+| `traduki` | General | Translate text between languages using LLM |
+| `resumu` | Email | Summarize emails (requires A-lien) |
+| `respondi` | Email | Draft email replies (requires A-lien) |
+| `agu` | Email | Extract actions from emails (requires A-lien) |
+
+#### Notable `generi` variants
+
+| Invocation | Purpose |
+|------------|---------|
+| `generi <prompto> --formato enc` | Generate .enc knowledge entries with AI |
+| `generi --formato enc --verbose` | Show LLM conversation summary |
+| `generi --ligilo <URL>` | Attach web page as context |
+| `generi --dosiero <path>` | Attach local file as context |
 
 ### Prompt Files
 
-All AI prompts are stored as standalone `.prompt` files — no embedded Python strings.
+All AI prompts are stored as standalone `.md` files — no embedded Python strings.
 Three-tier loading:
 
 | Tier | Location | Who edits |
 |------|----------|-----------|
-| User override | `~/.config/A/agento/prompts/<name>.prompt` | End users |
-| Packaged default | `src/A_agento/prompts/<name>.prompt` | Prompt engineers |
+| User override | `~/.config/A/agento/prompts/<name>.md` | End users |
+| Packaged default | `src/A_agento/prompts/<name>.md` | Prompt engineers |
 | Fallback | Embedded string in `prompt_loader.py` | Developers |
 
 To customize, copy the file you want to edit from the repo to your config:
 
 ```bash
 mkdir -p ~/.config/A/agento/prompts
-cp src/A_agento/prompts/generi_enc.prompt ~/.config/A/agento/prompts/
-$EDITOR ~/.config/A/agento/prompts/generi_enc.prompt
+cp src/A_agento/prompts/generi_enc.md ~/.config/A/agento/prompts/
+$EDITOR ~/.config/A/agento/prompts/generi_enc.md
 ```
 
 Available prompt files:
@@ -157,6 +173,7 @@ Available prompt files:
 | `generi_md` | `generi --formato md` | `{title_line}`, `{context}`, `{prompto}` |
 | `generi_json` | `generi --formato json` | `{title_line}`, `{context}`, `{prompto}` |
 | `generi_enc` | `generi --formato enc` | `{title_line}`, `{context}`, `{prompto}` |
+| `traduki` | `traduki` | `{to_target}`, `{from_source}`, `{text}` |
 
 Prompts are loaded on first use and cached in memory. Changes take effect on next A-agento invocation.
 
