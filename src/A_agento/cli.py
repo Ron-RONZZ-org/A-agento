@@ -10,6 +10,7 @@ from A_agento.stilo import stilo_app
 from A_agento.commands.email import resumu, respondi, agu
 from A_agento.commands.knowledge import generi
 from A_agento.commands.translation import traduki
+from A_agento.commands.enhancement import plibonigi
 
 app = typer.Typer(
     name="agento",
@@ -95,6 +96,14 @@ app.command(
         "Traduire du texte avec IA",  # fr
     ),
 )(traduki)
+app.command(
+    name="plibonigi",
+    help=tr_multi(
+        "Plibonigi au vastigi ekzistantan tekston per AI",  # eo
+        "Enhance or expand existing text with AI",  # en
+        "Ameliorer ou developper du texte existant avec IA",  # fr
+    ),
+)(plibonigi)
 
 
 # Make module callable as CLI
