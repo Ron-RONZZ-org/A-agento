@@ -8,4 +8,4 @@ Enhancement instructions: {instruction}
 Existing entry to enhance:
 {original_text}
 
-Generate the expanded .enc content, preserving all existing content and adding the new content as instructed. No word padding. No extra explanation.
+Generate the expanded .enc content ONLY, preserving all existing content and adding the new content as instructed. No word padding. No extra explanation.

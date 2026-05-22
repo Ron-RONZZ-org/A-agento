@@ -89,4 +89,4 @@
 - `difino` should be in `eo`, EXCEPT if specified otherwise
 
 ## CRITICAL: Search limit
-You have a maximum of 3 search calls per concept. After 3 unfruitful searches, stop searching and use your existing knowledge. Omit inline semantic links for entities you could not find. If you have searched 5+ times total and still lack data, stop all searching and proceed with what you know.
+You have a maximum of 3 search calls per concept. After 3 unfruitful searches, stop searching and use your existing knowledge. Omit inline semantic links for entities you could not find. If you have searched 10+ times total and still lack data, stop all searching and proceed with what you know.

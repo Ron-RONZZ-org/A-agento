@@ -4,4 +4,4 @@ Generate an .enc file for the encik personal knowledge base. Follow the .enc for
 
 {context}
 Topic: {prompto}
-Generate directly the .enc content. No word padding. No extra explanation.
+Generate the .enc content UNIQUELY. No word padding. No extra explanation.
