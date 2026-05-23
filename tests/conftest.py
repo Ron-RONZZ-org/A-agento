@@ -17,7 +17,7 @@ def isolate_agento(monkeypatch, tmp_path):
     from A_agento.data.storage import close_db
 
     close_db()  # reset singleton before patching
-    monkeypatch.setattr("A_agento.data.storage.data_dir", lambda: tmp_path)
+    monkeypatch.setattr("A_agento.data._storage_base.data_dir", lambda: tmp_path)
 
     # Mock keyring access (real keyring writes are permanent side-effects)
     monkeypatch.setattr("A.core.ai.save_api_key", lambda key, **kw: True)
