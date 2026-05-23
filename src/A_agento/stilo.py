@@ -112,38 +112,43 @@ def listo() -> None:
 
 
 @stilo_app.command("forigi", help=tr_multi(
-    "Forigi skribstilan specimon",  # eo
-    "Remove a style sample",  # en
-    "Supprimer un echantillon de style",  # fr
+    "Forigi skribstilajn specimojn",  # eo
+    "Remove style samples",  # en
+    "Supprimer les échantillons de style",  # fr
 ))
 def forigi(
-    uuid: str = typer.Argument(
+    uuids: list[str] = typer.Argument(
         ...,
         help=tr_multi(
-            "Specimo UUID",  # eo
-            "Sample UUID",  # en
-            "UUID de l'échantillon",  # fr
+            "Specimo UUID-oj (pluraj)",  # eo
+            "Sample UUIDs (multiple)",  # en
+            "UUID des échantillons (plusieurs)",  # fr
         ),
     ),
 ) -> None:
-    """Remove a style sample."""
-    delete_style_sample(uuid)
-    success(tr_multi('Specimo forigita.', 'Sample deleted.', 'Echantillon supprime.'))  # Sample deleted
+    """Remove style samples."""
+    for uid in uuids:
+        delete_style_sample(uid)
+    success(tr_multi(
+        f"Forigis {len(uuids)} specimojn.",
+        f"Deleted {len(uuids)} samples.",
+        f"Supprimé {len(uuids)} échantillons.",
+    ))
 
 
 @stilo_app.command("forigu", hidden=True)
 def forigu(
-    uuid: str = typer.Argument(
+    uuids: list[str] = typer.Argument(
         ...,
         help=tr_multi(
-            "Specimo UUID",  # eo
-            "Sample UUID",  # en
-            "UUID de l'échantillon",  # fr
+            "Specimo UUID-oj (pluraj)",  # eo
+            "Sample UUIDs (multiple)",  # en
+            "UUID des échantillons (plusieurs)",  # fr
         ),
     ),
 ) -> None:
     """[DEPRECATED] Use 'stilo forigi' instead."""
-    forigi(uuid)
+    forigi(uuids)
 
 
 @stilo_app.command("aktiva", help=tr_multi(
