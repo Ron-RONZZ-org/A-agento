@@ -98,6 +98,41 @@ class TestAgordoCommand:
         assert result.exit_code == 0
 
 
+class TestStiloCommand:
+    """Tests for stilo (style sample) commands."""
+
+    def test_stilo_shows_help(self):
+        """Test stilo command shows help."""
+        result = runner.invoke(app, ["stilo", "--help"])
+        assert result.exit_code == 0
+        assert "stilo" in result.output.lower()
+
+    @patch("A_agento.stilo.delete_style_sample")
+    def test_forigi_single(self, mock_del):
+        """Test forigi with a single UUID."""
+        result = runner.invoke(app, ["stilo", "forigi", "abc12345"])
+        assert result.exit_code == 0
+        mock_del.assert_called_once_with("abc12345")
+
+    @patch("A_agento.stilo.delete_style_sample")
+    def test_forigi_multiple(self, mock_del):
+        """Test forigi with multiple UUIDs."""
+        result = runner.invoke(app, ["stilo", "forigi", "abc12345", "def67890"])
+        assert result.exit_code == 0
+        assert mock_del.call_count == 2
+        mock_del.assert_any_call("abc12345")
+        mock_del.assert_any_call("def67890")
+
+    @patch("A_agento.stilo.delete_style_sample")
+    def test_forigu_multiple(self, mock_del):
+        """Test deprecated forigu with multiple UUIDs."""
+        result = runner.invoke(app, ["stilo", "forigu", "abc12345", "def67890"])
+        assert result.exit_code == 0
+        assert mock_del.call_count == 2
+        mock_del.assert_any_call("abc12345")
+        mock_del.assert_any_call("def67890")
+
+
 class TestApp:
     """General app tests."""
 
