@@ -48,15 +48,22 @@ src/A_agento/
 ├── contract.py            # Service contract with A-lien
 ├── commands/
 │   ├── __init__.py
-│   ├── _helpers.py         # Shared helpers (get_provider_or_exit, confirm_action)
-│   ├── email.py            # resumu, respondi, agu
-│   ├── knowledge.py        # generi (text generation)
-│   ├── enhancement.py      # plibonigi (text enhancement)
-│   └── translation.py      # traduki (text translation)
+│   ├── _helpers.py            # Shared helpers (get_provider_or_exit, confirm_action)
+│   ├── _knowledge_helpers.py  # Annotation rendering helpers (extracted from knowledge.py)
+│   ├── _context_helpers.py    # Context building shared between knowledge & enhancement
+│   ├── _enhancement_helpers.py# Text enhancement helpers (extracted from enhancement.py)
+│   ├── email.py               # resumu, respondi, agu
+│   ├── knowledge.py           # generi (text generation)
+│   ├── enhancement.py         # plibonigi (text enhancement)
+│   └── translation.py         # traduki (text translation)
 └── data/
     ├── __init__.py
-    ├── storage.py          # SQLite for agent metadata + history + styloj
-    └── provider_config.py  # Provider metadata storage (non-secret config, prioritato)
+    ├── storage.py             # SQLite for agent metadata + history + styloj
+    ├── _storage_base.py       # Shared storage helpers
+    ├── _storage_history.py    # History management
+    ├── _storage_samples.py    # Sample generation helpers
+    ├── _storage_templates.py  # Template CRUD
+    └── provider_config.py     # Provider metadata storage (non-secret config, prioritato)
 ```
 
 ### Cross-Module AI Injection
