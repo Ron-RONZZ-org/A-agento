@@ -10,343 +10,36 @@ Exports:
 
 from __future__ import annotations
 
-import sys as _sys
 from pathlib import Path
 from typing import Optional
 
 import typer
 
 from A import tr, tr_multi, info, error, success, copy_to_clipboard
-from A_agento.commands._helpers import get_provider_or_exit
-from A_agento.commands.knowledge import (
-    _clean_enc_output,
+from A_agento.commands._context_helpers import (
+    _core_html_to_text,
     _html_to_text,
-    _read_local_file,
-    _save_to_file,
     _truncate_context,
+    _read_local_file,
+    _offer_trafilatura_if_missing,
 )
-from A_agento.prompt_loader import load_prompt
+from A_agento.commands._knowledge_helpers import (
+    _clean_enc_output,
+    _save_to_file,
+)
+from A_agento.commands._enhancement_helpers import (
+    enhance_text,
+    _resolve_input_text,
+    _infer_format_from_input,
+)
 
-# Lazy imports: A-core modules may not exist on older installations.
-_fetch_text = None  # type: ignore
+_fetch_text = None
 try:
     from A.core.http import fetch_text as _fetch_text
 except ImportError:
     pass
 
-_core_html_to_text = None  # type: ignore
-try:
-    from A.core.web import html_to_text as _core_html_to_text
-except ImportError:
-    pass
-
-
-# ── Helpers ─────────────────────────────────────────────────────────────
-
-
 _SUPPORTED_FORMATS = ("txt", "md", "json", "enc")
-_EXT_TO_FORMAT: dict[str, str] = {
-    ".txt": "txt", ".md": "md", ".json": "json", ".enc": "enc",
-}
-_MAX_CONTEXT_CHARS = 50_000
-
-
-def _offer_trafilatura_if_missing() -> None:
-    """Prompt user to install trafilatura if not available (best-effort)."""
-    try:
-        import trafilatura  # noqa: F401
-    except ImportError:
-        if typer.confirm(
-            tr_multi(
-                "Cu instali trafilatura (A-core[web]) por pli bona "
-                "enhavo-eltiro el retpaghoj?",
-                "Install trafilatura (A-core[web]) for better "
-                "web page content extraction?",
-                "Installer trafilatura (A-core[web]) pour une meilleure "
-                "extraction du contenu web ?",
-            ),
-            default=True,
-        ):
-            info(tr_multi(
-                "Instalas trafilatura...",
-                "Installing trafilatura...",
-                "Installation de trafilatura...",
-            ))
-            try:
-                import subprocess
-
-                installers = [
-                    ("uv pip", ["uv", "pip", "install", "trafilatura"]),
-                    ("pip", ["pip", "install", "trafilatura"]),
-                    ("python3 -m pip", ["python3", "-m", "pip", "install", "trafilatura"]),
-                    (f"{_sys.executable} -m pip", [_sys.executable, "-m", "pip", "install", "trafilatura"]),
-                ]
-                for label, cmd in installers:
-                    try:
-                        subprocess.check_call(
-                            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                        )
-                        success(tr_multi(
-                            "trafilatura instalita. Rekomencu la ordon por uzi ghin.",
-                            "trafilatura installed. Restart the command to use it.",
-                            "trafilatura installe. Reexecutez la commande pour l'utiliser.",
-                        ))
-                        return
-                    except (FileNotFoundError, subprocess.CalledProcessError):
-                        continue
-
-                warning(tr_multi(
-                    "Ne eblis instali trafilatura per iu ajn metodo. "
-                    "Provu permane: uv pip install trafilatura",
-                    "Could not install trafilatura via any method. "
-                    "Try manually: uv pip install trafilatura",
-                    "Impossible d'installer trafilatura. "
-                    "Essayez manuellement : uv pip install trafilatura",
-                ))
-            except Exception:
-                pass  # Best-effort only
-
-
-def _build_enc_context_block(topic: str, max_entries: int = 20) -> str:
-    """Search encik for entries related to *topic* and format as a reference block.
-
-    Returns a string like::
-
-        - scienco (#aa1f345c): sistema studo de la mondo
-
-    Empty string if A-encik is not installed or no results found.
-    """
-    try:
-        from A_encik.service import get_service
-
-        svc = get_service()
-        entries = svc.search_like(topic, limit=max_entries)
-        if not entries:
-            return ""
-
-        lines: list[str] = []
-        for e in entries:
-            uid = (e.get("uuid") or "")[:8]
-            title = e.get("titolo") or ""
-            preview = (e.get("difinio") or "")[:80].replace("\n", " ")
-            if uid and title:
-                lines.append(f"- {title} (#{uid}): {preview}" if preview else f"- {title} (#{uid})")
-        return "\n".join(lines) if lines else ""
-    except ImportError:
-        return ""
-    except Exception:
-        return ""
-
-
-def _resolve_input_text(
-    input_arg: str,
-    dosiero: Path | None,
-) -> str:
-    """Resolve input text from argument, file path, or stdin.
-
-    Priority:
-    1. ``--dosiero`` flag (highest)
-    2. Positional argument that is an existing file path
-    3. Positional argument used as literal text
-    4. stdin pipe (if not a TTY)
-
-    Args:
-        input_arg: Positional argument value.
-        dosiero: Explicit ``--dosiero`` path.
-
-    Returns:
-        Resolved input text.
-
-    Raises:
-        typer.Exit: If no input can be resolved.
-    """
-    if dosiero:
-        try:
-            return _read_local_file(dosiero)
-        except Exception as e:
-            error(
-                tr_multi(
-                    f"Ne eblas legi dosieron {dosiero}: {e}",
-                    f"Cannot read file {dosiero}: {e}",
-                    f"Impossible de lire le fichier {dosiero} : {e}",
-                ),
-            )
-            raise typer.Exit(1) from e
-
-    if input_arg:
-        path = Path(input_arg)
-        if path.is_file():
-            try:
-                return _read_local_file(path)
-            except Exception as e:
-                error(
-                    tr_multi(
-                        f"Ne eblas legi dosieron {input_arg}: {e}",
-                        f"Cannot read file {input_arg}: {e}",
-                        f"Impossible de lire le fichier {input_arg} : {e}",
-                    ),
-                )
-                raise typer.Exit(1) from e
-        return input_arg  # Use as literal text
-
-    # Stdin fallback
-    if not _sys.stdin.isatty():
-        try:
-            return _sys.stdin.read()
-        except Exception as e:
-            error(
-                tr_multi(
-                    f"Ne eblas legi de enigo: {e}",
-                    f"Cannot read from stdin: {e}",
-                    f"Impossible de lire depuis l'entree standard : {e}",
-                ),
-            )
-            raise typer.Exit(1) from e
-
-    error(
-        tr_multi(
-            "Neniu eniga teksto. Provizu tekston, dosieron, aux tubigu enigon.",
-            "No input text. Provide text, a file path, or pipe input.",
-            "Aucun texte d'entree. Fournissez du texte, un chemin de fichier, ou un pipe.",
-        ),
-    )
-    raise typer.Exit(1)
-
-
-def _infer_format_from_input(
-    input_arg: str,
-    dosiero: Path | None,
-) -> str | None:
-    """Infer output format from file extension of the input path.
-
-    Checks ``--dosiero`` first, then the positional argument if it is an
-    existing file.  Returns ``None`` if no file path is found or the
-    extension is not recognised.
-    """
-    path: Path | None = None
-    if dosiero:
-        path = dosiero
-    elif input_arg:
-        candidate = Path(input_arg)
-        if candidate.is_file():
-            path = candidate
-    if path is None:
-        return None
-    return _EXT_TO_FORMAT.get(path.suffix.lower())
-
-
-def _load_prompt_for_format(formato: str) -> str:
-    """Load the appropriate prompt template for the given format.
-
-    Tries ``plibonigi_{formato}.md`` first, falls back to ``plibonigi.md``.
-    """
-    prompt = load_prompt(f"plibonigi_{formato}")
-    if prompt:
-        return prompt
-    return load_prompt("plibonigi")
-
-
-# ── Exportable function (for other modules) ────────────────────────────
-
-
-def enhance_text(
-    text: str,
-    instruction: str = "",
-    formato: str = "txt",
-    provider_ref: str = "",
-    context: str = "",
-    verbose: bool = False,
-    interject: bool = False,
-) -> str:
-    """Enhance/expand *text* using the configured LLM provider.
-
-    Args:
-        text: Original text to enhance.
-        instruction: How to enhance (e.g. "make more formal", "expand with examples").
-        formato: Output format (txt/md/json/enc).
-        provider_ref: Provider reference (uses prioritato fallback if empty).
-        context: External context (web page content, URL content, etc.).
-        verbose: Show the full LLM conversation.
-        interject: Allow user interjection during generation.
-
-    Returns:
-        Enhanced text.
-
-    Raises:
-        typer.Exit: If provider cannot be resolved or generation fails.
-    """
-    provider = get_provider_or_exit(provider_ref) if provider_ref else get_provider_or_exit()
-
-    if formato == "enc":
-        # Increase token limit for .enc expansion (tool calls + existing content)
-        provider._max_tokens = 16384
-
-    prompt = _load_prompt_for_format(formato)
-
-    if formato == "enc":
-        # Tool-based expansion: build messages with warm context
-        filled = prompt.format(
-            original_text=text,
-            instruction=instruction,
-            context="",
-            enc_rules=load_prompt("enc_rules"),
-        )
-        # Warm context: pre-populate with existing entries related to the content
-        search_topic = instruction[:80] if instruction else text[:80]
-        context_block = _build_enc_context_block(search_topic)
-        if context_block:
-            filled += f"\n\n# Existing entries you can reference directly\n{context_block}"
-
-        from A_agento.tools import ENCIK_TOOLS, generate_with_tools
-
-        messages = [{"role": "user", "content": filled}]
-        if context:
-            messages.append({
-                "role": "user",
-                "content": context,
-                "_display_hint": "external_context",
-            })
-
-        try:
-            content = generate_with_tools(
-                provider, messages, tools=ENCIK_TOOLS,
-                verbose=verbose, interject=interject,
-            )
-        except Exception as e:
-            error(
-                tr_multi(
-                    f"Plibonigo malsukcesis: {e}",
-                    f"Enhancement failed: {e}",
-                    f"Amelioration echouee : {e}",
-                ),
-            )
-            raise typer.Exit(1) from e
-
-        content = _clean_enc_output(content)
-    else:
-        # Simple format-preserving enhancement
-        filled = prompt.format(
-            formato=formato,
-            original_text=text,
-            instruction=instruction,
-            context=context,
-        )
-        try:
-            content = provider.generate(filled)
-        except Exception as e:
-            error(
-                tr_multi(
-                    f"Plibonigo malsukcesis: {e}",
-                    f"Enhancement failed: {e}",
-                    f"Amelioration echouee : {e}",
-                ),
-            )
-            raise typer.Exit(1) from e
-
-    return content.strip()
-
-
-# ── CLI command ────────────────────────────────────────────────────────
 
 
 def plibonigi(
@@ -486,12 +179,8 @@ def plibonigi(
         agento plibonigi entry.enc "add biographical details" -f enc
         agento plibonigi draft.md "add citations" -l "https://example.com/source"
     """
-    # ── Resolve instruction ─────────────────────────────────────────────
-    # Prefer positional ($2); fall back to --instrukcio (long-form only,
-    # no short flag), which is useful when piping stdin.
     resolved_instruction = instruction or instrukcio_opt or ""
 
-    # ── Resolve format ──────────────────────────────────────────────────
     if formato is None:
         inferred = _infer_format_from_input(input, dosiero)
         formato = inferred or "txt"
@@ -506,7 +195,6 @@ def plibonigi(
         )
         raise typer.Exit(1)
 
-    # ── Resolve input text ──────────────────────────────────────────────
     input_text = _resolve_input_text(input, dosiero)
     if not input_text.strip():
         error(
@@ -518,7 +206,6 @@ def plibonigi(
         )
         raise typer.Exit(1)
 
-    # ── Build external context from --ligilo ────────────────────────────
     context_str = ""
     if ligilo:
         if _fetch_text is None:
@@ -558,17 +245,6 @@ def plibonigi(
             ))
             raise typer.Exit(1) from e
 
-    # ── Enhance ─────────────────────────────────────────────────────────
-    provider = get_provider_or_exit(provizanto)
-
-    info(
-        tr_multi(
-            f"Plibonigas enhavon ({formato})...",
-            f"Enhancing content ({formato})...",
-            f"Ameiloration du contenu ({formato})...",
-        ),
-    )
-
     result = enhance_text(
         text=input_text,
         instruction=resolved_instruction,
@@ -589,7 +265,6 @@ def plibonigi(
         )
         raise typer.Exit(1)
 
-    # ── Output ──────────────────────────────────────────────────────────
     success(
         tr_multi(
             "Plibonigita teksto:",
@@ -599,7 +274,6 @@ def plibonigi(
     )
     print(f"\n{result}\n")
 
-    # ── --konservi (save to file) ───────────────────────────────────────
     saved_path: Path | None = None
     if konservi:
         ext_map = {"txt": ".txt", "md": ".md", "json": ".json", "enc": ".enc"}
@@ -618,7 +292,6 @@ def plibonigi(
             )
             raise typer.Exit(1) from e
 
-    # ── --kopii (copy to clipboard) ─────────────────────────────────────
     if kopii:
         copy_target = str(saved_path) if saved_path else result
         copy_to_clipboard(copy_target)

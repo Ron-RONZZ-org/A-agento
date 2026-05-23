@@ -151,7 +151,7 @@ class TestReadLocalFile:
             warnings.append(str(msg))
 
         monkeypatch.setattr(
-            "A_agento.commands.knowledge.warning",
+            "A_agento.commands._context_helpers.warning",
             _capture_warning,
         )
 
