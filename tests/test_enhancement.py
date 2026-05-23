@@ -19,7 +19,7 @@ runner = CliRunner()
 # The plibonigi command imports get_provider_or_exit at module level, so we
 # must patch at the consumer namespace (enhancement.py), not the definition
 # location (_helpers.py).
-_PATCH_TARGET = "A_agento.commands.enhancement.get_provider_or_exit"
+_PATCH_TARGET = "A_agento.commands._enhancement_helpers.get_provider_or_exit"
 
 
 class TestPlibonigiHelp:
@@ -204,7 +204,7 @@ class TestPlibonigiStdin:
         """_resolve_input_text should read from stdin when not TTY."""
         from A_agento.commands.enhancement import _resolve_input_text
 
-        with patch("A_agento.commands.enhancement._sys.stdin") as mock_stdin:
+        with patch("A_agento.commands._enhancement_helpers._sys.stdin") as mock_stdin:
             mock_stdin.isatty.return_value = False
             mock_stdin.read.return_value = "stdin content"
 
@@ -215,7 +215,7 @@ class TestPlibonigiStdin:
         """_resolve_input_text should error when no input and stdin is TTY."""
         from A_agento.commands.enhancement import _resolve_input_text
 
-        with patch("A_agento.commands.enhancement._sys.stdin") as mock_stdin:
+        with patch("A_agento.commands._enhancement_helpers._sys.stdin") as mock_stdin:
             mock_stdin.isatty.return_value = True
 
             with pytest.raises(typer.Exit):
