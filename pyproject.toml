@@ -33,6 +33,9 @@ agento = "A_agento.cli:app"
 retposto = "A_agento.registration:get_lien_ai_app"
 encik = "A_agento.registration:get_encik_ai_app"
 
+[project.entry-points."A.backup"]
+agento = "A_agento.data._storage_base:get_backup_targets"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/A_agento"]
 

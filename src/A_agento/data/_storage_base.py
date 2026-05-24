@@ -4,6 +4,7 @@ from typing import Any
 
 from A.data.base import SQLiteDB, backup_db, health_check
 from A.core.paths import data_dir
+from A.core.backup_targets import BackupTarget
 
 _DB_NAME = "agento"
 
@@ -82,3 +83,15 @@ def close_db() -> None:
     global _db
     if _db is not None:
         _db = None
+
+
+def get_backup_targets() -> list[BackupTarget]:
+    """Return backup targets for A-agento."""
+    return [
+        BackupTarget(
+            path=data_dir() / f"{_DB_NAME}.db",
+            category="data",
+            module="agento",
+            label="Agento database",
+        ),
+    ]
