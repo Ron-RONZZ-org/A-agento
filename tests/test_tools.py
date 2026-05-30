@@ -283,3 +283,52 @@ class TestFallbackWithContext:
             [],
         )
         assert result == "Generated text"
+
+
+class TestOfferTrafilatura:
+    """_offer_trafilatura_if_missing delegates to ensure_dependency."""
+
+    def test_trafilatura_available(self) -> None:
+        """When trafilatura is already importable, no install needed."""
+        from A_agento.commands._context_helpers import _offer_trafilatura_if_missing
+
+        import types
+        mock_mod = types.ModuleType("trafilatura")
+        with patch.dict("sys.modules", {"trafilatura": mock_mod}):
+            # Should return without attempting install
+            _offer_trafilatura_if_missing()
+
+    def test_calls_ensure_dependency(self) -> None:
+        """When missing, calls ensure_dependency('trafilatura')."""
+        from A_agento.commands._context_helpers import _offer_trafilatura_if_missing
+
+        import builtins
+        original_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "trafilatura":
+                raise ImportError
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", fake_import):
+            with patch("A.utils.deps.ensure_dependency") as mock_ed:
+                _offer_trafilatura_if_missing()
+                mock_ed.assert_called_once_with("trafilatura")
+
+    def test_import_error_shows_warning(self) -> None:
+        """When ensure_dependency fails, shows warning instead of crashing."""
+        from A_agento.commands._context_helpers import _offer_trafilatura_if_missing
+
+        import builtins
+        original_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "trafilatura":
+                raise ImportError
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", fake_import):
+            with patch("A.utils.deps.ensure_dependency", side_effect=ImportError("fail")):
+                with patch("A_agento.commands._context_helpers.warning") as mock_warn:
+                    _offer_trafilatura_if_missing()
+                    mock_warn.assert_called_once()
