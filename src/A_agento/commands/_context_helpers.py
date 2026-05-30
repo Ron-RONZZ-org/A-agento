@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-from A import tr_multi, info, success, warning
+from A import tr_multi, success, warning
 
 _core_html_to_text = None
 try:
@@ -78,54 +78,21 @@ def _offer_trafilatura_if_missing() -> None:
     try:
         import trafilatura  # noqa: F401
     except ImportError:
-        import sys
+        from A.utils.deps import ensure_dependency
 
-        if typer.confirm(
-            tr_multi(
-                "Ĉu instali trafilatura (A-core[web]) por pli bona "
-                "enhavo-eltiro el retpaĝoj?",
-                "Install trafilatura (A-core[web]) for better "
-                "web page content extraction?",
-                "Installer trafilatura (A-core[web]) pour une meilleure "
-                "extraction du contenu web ?",
-            ),
-            default=True,
-        ):
-            info(tr_multi(
-                "Instalas trafilatura...",
-                "Installing trafilatura...",
-                "Installation de trafilatura...",
+        try:
+            ensure_dependency("trafilatura")
+            success(tr_multi(
+                "trafilatura instalita. Rekomencu la ordon por uzi ghin.",
+                "trafilatura installed. Restart the command to use it.",
+                "trafilatura installé. Réexécutez la commande pour l'utiliser.",
             ))
-            try:
-                import subprocess
-
-                installers = [
-                    ("uv pip", ["uv", "pip", "install", "trafilatura"]),
-                    ("pip", ["pip", "install", "trafilatura"]),
-                    ("python3 -m pip", ["python3", "-m", "pip", "install", "trafilatura"]),
-                    (f"{sys.executable} -m pip", [sys.executable, "-m", "pip", "install", "trafilatura"]),
-                ]
-                for label, cmd in installers:
-                    try:
-                        subprocess.check_call(
-                            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                        )
-                        success(tr_multi(
-                            "trafilatura instalita. Rekomencu la ordon por uzi ghin.",
-                            "trafilatura installed. Restart the command to use it.",
-                            "trafilatura installé. Réexécutez la commande pour l'utiliser.",
-                        ))
-                        return
-                    except (FileNotFoundError, subprocess.CalledProcessError):
-                        continue
-
-                warning(tr_multi(
-                    "Ne eblis instali trafilatura per iu ajn metodo. "
-                    "Provu permane: uv pip install trafilatura",
-                    "Could not install trafilatura via any method. "
-                    "Try manually: uv pip install trafilatura",
-                    "Impossible d'installer trafilatura. "
-                    "Essayez manuellement : uv pip install trafilatura",
-                ))
-            except Exception:
-                pass
+        except ImportError:
+            warning(tr_multi(
+                "Ne eblis instali trafilatura. "
+                "Provu permane: uv pip install trafilatura",
+                "Could not install trafilatura. "
+                "Try manually: uv pip install trafilatura",
+                "Impossible d'installer trafilatura. "
+                "Essayez manuellement : uv pip install trafilatura",
+            ))
