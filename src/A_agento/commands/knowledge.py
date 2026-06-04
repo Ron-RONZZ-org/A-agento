@@ -11,7 +11,7 @@ from typing import Optional
 
 import typer
 
-from A import tr, tr_multi, info, error, success, copy_to_clipboard
+from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard
 from A_agento.commands._helpers import get_provider_or_exit
 from A_agento.commands._context_helpers import (
     _core_html_to_text,
@@ -307,7 +307,13 @@ def generi(
         try:
             final_path = _save_to_file(konservi, content.strip(), titolo or prompto)
             if kopii and final_path is not None:
-                copy_to_clipboard(str(final_path))
+                ok, reason = copy_to_clipboard(str(final_path))
+                if not ok:
+                    warning(tr_multi(
+                        "Ne povis kopii vojon al poŝo: {kialo}",
+                        "Could not copy path to clipboard: {kialo}",
+                        "Impossible de copier le chemin dans le presse-papier : {kialo}",
+                    ).format(kialo=reason))
         except Exception as e:
             import sys as _sys
             _sys.stderr.write(f"[SAVE_ERROR] {type(e).__name__}: {e}\n")

@@ -274,6 +274,7 @@ class TestPlibonigiOutput:
         mock_get_provider.return_value = mock_provider
 
         with patch("A_agento.commands.enhancement.copy_to_clipboard") as mock_copy:
+            mock_copy.return_value = (True, "")
             result = runner.invoke(app, [
                 "plibonigi", "Some text",
                 "-k",
@@ -292,6 +293,7 @@ class TestPlibonigiOutput:
 
         out = tmp_path / "out.txt"
         with patch("A_agento.commands.enhancement.copy_to_clipboard") as mock_copy:
+            mock_copy.return_value = (True, "")
             result = runner.invoke(app, [
                 "plibonigi", "Some text",
                 "-K", str(out),

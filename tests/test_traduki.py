@@ -196,6 +196,7 @@ class TestTradukiOutput:
         mock_get_provider.return_value = mock_provider
 
         with patch("A_agento.commands.translation.copy_to_clipboard") as mock_copy:
+            mock_copy.return_value = (True, "")
             result = runner.invoke(app, [
                 "traduki", "Hello",
                 "-c", "fr",
@@ -215,6 +216,7 @@ class TestTradukiOutput:
 
         out = tmp_path / "out.txt"
         with patch("A_agento.commands.translation.copy_to_clipboard") as mock_copy:
+            mock_copy.return_value = (True, "")
             result = runner.invoke(app, [
                 "traduki", "Hello",
                 "-c", "de",

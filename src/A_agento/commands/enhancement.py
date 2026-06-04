@@ -15,7 +15,7 @@ from typing import Optional
 
 import typer
 
-from A import tr, tr_multi, info, error, success, copy_to_clipboard
+from A import tr, tr_multi, info, error, success, warning, copy_to_clipboard
 from A_agento.commands._context_helpers import (
     _core_html_to_text,
     _html_to_text,
@@ -294,14 +294,21 @@ def plibonigi(
 
     if kopii:
         copy_target = str(saved_path) if saved_path else result
-        copy_to_clipboard(copy_target)
-        info(
-            tr_multi(
-                "Kopiita al tondujo.",
-                "Copied to clipboard.",
-                "Copie dans le presse-papiers.",
-            ),
-        )
+        ok, reason = copy_to_clipboard(copy_target)
+        if not ok:
+            warning(tr_multi(
+                "Ne povis kopii al poŝo: {kialo}",
+                "Could not copy to clipboard: {kialo}",
+                "Impossible de copier dans le presse-papier : {kialo}",
+            ).format(kialo=reason))
+        else:
+            info(
+                tr_multi(
+                    "Kopiita al tondujo.",
+                    "Copied to clipboard.",
+                    "Copie dans le presse-papiers.",
+                ),
+            )
 
 
 __all__ = [
