@@ -64,25 +64,25 @@ _SCHEMA: dict[str, str] = {
     """,
 }
 
-_db: SQLiteDB | None = None
+_db_instance: SQLiteDB | None = None
 
 
 def get_db() -> SQLiteDB:
-    global _db
-    if _db is None:
+    global _db_instance
+    if _db_instance is None:
         db_path = data_dir() / f"{_DB_NAME}.db"
         if not health_check(db_path):
             from A.data.base import repair_db as _repair
             _repair(db_path)
         backup_db(db_path)
-        _db = SQLiteDB(db_path, schema=_SCHEMA)
-    return _db
+        _db_instance = SQLiteDB(db_path, schema=_SCHEMA)
+    return _db_instance
 
 
 def close_db() -> None:
-    global _db
-    if _db is not None:
-        _db = None
+    global _db_instance
+    if _db_instance is not None:
+        _db_instance = None
 
 
 def get_backup_targets() -> list[BackupTarget]:
