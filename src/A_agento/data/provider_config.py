@@ -1,19 +1,29 @@
 """Provider configuration storage for A-agento.
 
-Stores non-secret provider metadata (label, model, base URL).
-API keys are stored separately in the system keyring.
+Legacy shim — delegates all storage logic to ``A.core.ai_config``.
+Maintains backward-compatible dict return types.
+
+API keys are stored separately in the system keyring (unchanged).
 """
 
 from __future__ import annotations
 
-import uuid as uuid_mod
 from typing import Any
 
-from A_agento.data.storage import get_db
+from A.core.ai_config import (
+    ProviderConfig as _ProviderConfig,
+    delete_provider_config as _core_delete,
+    find_config as _core_find,
+    get_fallback_order as _core_fallback_order,
+    get_provider_config as _core_get,
+    get_provider_config_by_uuid as _core_get_by_uuid,
+    get_provider_with_fallback as _core_fallback,
+    list_provider_configs as _core_list,
+    parse_ref as _core_parse,
+    save_provider_config as _core_save,
+)
 
-# Schema for the provider config table
-PROVIDER_CONFIG_TABLE = "provizanto_agordoj"
-
+# Schema kept for backward compat with any module inspecting it
 PROVIDER_CONFIG_SCHEMA = {
     "provizanto_agordoj": """
         CREATE TABLE IF NOT EXISTS provizanto_agordoj (
@@ -31,36 +41,47 @@ PROVIDER_CONFIG_SCHEMA = {
     """,
 }
 
-
+# Migration helpers — no-ops; handled by A.core.ai_config
 def _ensure_uuid_column() -> None:
-    """Add uuid column to existing tables that lack it (migration)."""
-    db = get_db()
-    cols = db.execute("PRAGMA table_info(provizanto_agordoj)")
-    col_names = {c["name"] for c in cols}
-    if "uuid" not in col_names:
-        db.execute("ALTER TABLE provizanto_agordoj ADD COLUMN uuid TEXT")
-        # Backfill UUIDs for existing rows
-        rows = db.execute("SELECT rowid FROM provizanto_agordoj WHERE uuid IS NULL")
-        for row in rows:
-            new_uuid = str(uuid_mod.uuid4())
-            db.execute("UPDATE provizanto_agordoj SET uuid = ? WHERE rowid = ?", (new_uuid, row["rowid"]))
+    pass
 
 
 def _ensure_prioritato_column() -> None:
-    """Add prioritato column to existing tables that lack it (migration).
-    
-    Existing rows get prioritato assigned by kreita_je order
-    (oldest = highest priority / lowest number).
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Convert ProviderConfig dataclass → dict for backward compat
+# ---------------------------------------------------------------------------
+
+
+def _as_dict(cfg: _ProviderConfig | None) -> dict[str, Any] | None:
+    """Convert a ProviderConfig dataclass to a plain dict.
+
+    Args:
+        cfg: A ProviderConfig instance or None.
+
+    Returns:
+        Dict with the same fields, or None.
     """
-    db = get_db()
-    cols = db.execute("PRAGMA table_info(provizanto_agordoj)")
-    col_names = {c["name"] for c in cols}
-    if "prioritato" not in col_names:
-        db.execute("ALTER TABLE provizanto_agordoj ADD COLUMN prioritato INTEGER NOT NULL DEFAULT 0")
-        # Assign priorities based on creation order (oldest first = highest priority)
-        rows = db.execute("SELECT uuid, kreita_je FROM provizanto_agordoj ORDER BY kreita_je ASC")
-        for i, row in enumerate(rows):
-            db.execute("UPDATE provizanto_agordoj SET prioritato = ? WHERE uuid = ?", (i, row["uuid"]))
+    if cfg is None:
+        return None
+    return {
+        "uuid": cfg.uuid,
+        "provider": cfg.provider,
+        "profile": cfg.profile,
+        "noto": cfg.noto,
+        "modelo": cfg.modelo,
+        "base_url": cfg.base_url,
+        "prioritato": cfg.prioritato,
+        "kreita_je": cfg.kreita_je,
+        "modifita_je": cfg.modifita_je,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Re-exported functions (dict return types for backward compat)
+# ---------------------------------------------------------------------------
 
 
 def save_provider_config(
@@ -71,116 +92,46 @@ def save_provider_config(
     base_url: str = "",
     prioritato: int | None = None,
 ) -> dict[str, Any]:
-    """Save or update provider configuration metadata.
+    """Save or update provider configuration.
 
-    Provider name is normalized to lowercase for consistent DB and
-    keyring naming.
-
-    Stores non-secret provider metadata (label, model, base URL).
-    API keys are stored separately in the system keyring.
-
-    Args:
-        provider: Provider name (huggingface, deepseek, openai)
-        profile: Profile/label for the key (default: "default")
-        noto: User-friendly label
-        modelo: Model name override
-        base_url: Custom API base URL
-        prioritato: Priority (lower = tried first). If None on new entry,
-                    auto-assigns 0 (highest) and shifts existing by +1.
-                    If None on update, keeps existing value.
+    Delegates to ``A.core.ai_config.save_provider_config``.
 
     Returns:
-        Saved config dict
+        Dict of the saved config.
     """
-    provider = provider.lower()
-    from datetime import datetime, timezone
-
-    db = get_db()
-    now = datetime.now(timezone.utc).isoformat()
-
-    existing = get_provider_config(provider, profile)
-    if existing:
-        if prioritato is None:
-            prioritato = existing.get("prioritato", 0)
-        db.execute(
-            """UPDATE provizanto_agordoj
-               SET noto = ?, modelo = ?, base_url = ?, prioritato = ?, modifita_je = ?
-               WHERE uuid = ?""",
-            (noto, modelo, base_url, prioritato, now, existing["uuid"]),
-        )
-        result = {**existing, "noto": noto, "modelo": modelo, "base_url": base_url, "prioritato": prioritato}
-    else:
-        if prioritato is None:
-            # New entry without explicit priority: highest priority (0), shift existing
-            db.execute("UPDATE provizanto_agordoj SET prioritato = prioritato + 1")
-            prioritato = 0
-        entry_uuid = str(uuid_mod.uuid4())
-        db.execute(
-            """INSERT INTO provizanto_agordoj
-               (uuid, provider, profile, noto, modelo, base_url, prioritato, kreita_je, modifita_je)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (entry_uuid, provider, profile, noto, modelo, base_url, prioritato, now, now),
-        )
-        result = {
-            "uuid": entry_uuid,
-            "provider": provider,
-            "profile": profile,
-            "noto": noto,
-            "modelo": modelo,
-            "base_url": base_url,
-            "prioritato": prioritato,
-        }
-
-    return result
+    result = _core_save(provider, profile, noto, modelo, base_url, prioritato)
+    return _as_dict(result)  # type: ignore[return-value]
 
 
 def get_provider_config(
     provider: str,
     profile: str = "default",
 ) -> dict[str, Any] | None:
-    """Get provider configuration by provider and profile.
-
-    Args:
-        provider: Provider name
-        profile: Profile/label
+    """Get provider config by provider and profile.
 
     Returns:
-        Config dict or None
+        Dict or None.
     """
-    db = get_db()
-    return db.execute_one(
-        "SELECT * FROM provizanto_agordoj WHERE provider = ? AND profile = ?",
-        (provider, profile),
-    )
+    return _as_dict(_core_get(provider, profile))
 
 
 def get_provider_config_by_uuid(uuid: str) -> dict[str, Any] | None:
-    """Get provider configuration by UUID (supports prefix).
-
-    Args:
-        uuid: Entry UUID or prefix (e.g. "a1b2c3d4")
+    """Get provider config by UUID (supports prefix).
 
     Returns:
-        Config dict or None. If prefix matches multiple, returns the first.
+        Dict or None.
     """
-    db = get_db()
-    return db.execute_one(
-        "SELECT * FROM provizanto_agordoj WHERE uuid LIKE ?",
-        (f"{uuid}%",),
-    )
+    return _as_dict(_core_get_by_uuid(uuid))
 
 
 def list_provider_configs() -> list[dict[str, Any]]:
-    """List all provider configurations ordered by priority.
+    """List all provider configs ordered by priority.
 
     Returns:
-        List of config dicts ordered by prioritato ASC, kreita_je DESC.
-        Lower prioritato = tried first in auto-fallback.
+        List of dicts.
     """
-    db = get_db()
-    return db.execute(
-        "SELECT * FROM provizanto_agordoj ORDER BY prioritato ASC, kreita_je DESC"
-    )
+    configs = _core_list()
+    return [_as_dict(c) for c in configs if c is not None]
 
 
 def delete_provider_config(
@@ -190,44 +141,29 @@ def delete_provider_config(
 ) -> bool:
     """Delete a provider configuration.
 
-    Deletes by UUID if provided, otherwise by provider+profile.
-    Note: this does NOT remove the API key from the keyring.
-    Use A.core.ai.save_api_key('', provider) to clear the key.
+    Returns:
+        True if deleted.
+    """
+    return _core_delete(provider, profile, uuid)
 
-    Args:
-        provider: Provider name (required if uuid not given)
-        profile: Profile/label (default: "default")
-        uuid: Entry UUID (alternative to provider+profile)
+
+def parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
+    """Parse a provider reference.
 
     Returns:
-        True if deleted, False if not found
+        (uuid, provider, profile) tuple.
     """
-    db = get_db()
-    if uuid:
-        existing = db.execute_one(
-            "SELECT 1 FROM provizanto_agordoj WHERE uuid = ?", (uuid,)
-        )
-        if existing is None:
-            return False
-        db.execute("DELETE FROM provizanto_agordoj WHERE uuid = ?", (uuid,))
-        return True
-    else:
-        existing = db.execute_one(
-            "SELECT 1 FROM provizanto_agordoj WHERE provider = ? AND profile = ?",
-            (provider, profile),
-        )
-        if existing is None:
-            return False
-        db.execute(
-            "DELETE FROM provizanto_agordoj WHERE provider = ? AND profile = ?",
-            (provider, profile),
-        )
-        return True
+    return _core_parse(ref)
 
 
-# Run migrations on import
-_ensure_uuid_column()
-_ensure_prioritato_column()
+def find_config(ref: str) -> dict[str, Any] | None:
+    """Find a provider config by UUID, provider, or provider:profile.
+
+    Returns:
+        Dict or None.
+    """
+    return _as_dict(_core_find(ref))
+
 
 __all__ = [
     "PROVIDER_CONFIG_SCHEMA",
@@ -239,47 +175,3 @@ __all__ = [
     "parse_ref",
     "find_config",
 ]
-
-# ── Reference parsing (shared between agordo_crud and commands) ─────────────
-
-
-def parse_ref(ref: str) -> tuple[str | None, str | None, str | None]:
-    """Parse a provider reference into (uuid, provider, profile).
-
-    Accepts UUID (full or 8+ hex prefix), provider:profile, or bare provider name.
-
-    A reference is treated as UUID if it contains hex digits only (or hex with
-    hyphens) and is at least 8 characters long.
-    """
-    stripped = ref.strip()
-    # Full UUID with hyphens
-    if len(stripped) == 36 and stripped.count("-") == 4:
-        return (stripped, None, None)
-    # UUID prefix or full hex UUID (8-32 chars, all hex)
-    if len(stripped) >= 8 and len(stripped) <= 32 and all(c in "0123456789abcdef" for c in stripped.lower()):
-        return (stripped, None, None)
-    # Provider:profile syntax
-    if ":" in stripped:
-        parts = stripped.split(":", 1)
-        return (None, parts[0], parts[1])
-    # Bare provider name
-    return (None, stripped, None)
-
-
-def find_config(ref: str) -> dict | None:
-    """Find a provider config by UUID, provider, or provider:profile.
-
-    If the ref looks like a UUID but no config matches, falls back to
-    looking it up as a provider name. This handles provider names that
-    happen to look like hex strings (e.g. "deadbeef" or "a1b2c3d4").
-    """
-    uuid, provider, profile = parse_ref(ref)
-    if uuid:
-        config = get_provider_config_by_uuid(uuid)
-        if config:
-            return config
-        # UUID didn't match — try as provider name
-        return get_provider_config(ref, profile or "default")
-    if provider:
-        return get_provider_config(provider, profile or "default")
-    return None
