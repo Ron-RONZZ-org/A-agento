@@ -88,11 +88,11 @@ def aldoni(
         ),
     ),
     key: Optional[str] = typer.Option(
-        None, "--key", "-k",
+        None, "--slosilo", "--key", "-k", hidden=True,
         help=tr_multi("API-ŝlosilo (se ne donita, petita interage)", "API key (if omitted, prompted interactively)", "Clé API (si omise, demandée interactivement)"),
     ),
     base_url: Optional[str] = typer.Option(
-        None, "--base-url", "-b",
+        None, "--baza-url", "--base-url", "-b", hidden=True,
         help=tr_multi("API-baza URL (por OpenAI-kongruaj finpunktoj)", "API base URL (for OpenAI-compatible endpoints)", "URL de base API (pour les points de terminaison compatibles OpenAI)"),
     ),
     noto: Optional[str] = typer.Option(
@@ -166,8 +166,8 @@ agordo_app.command(
 ))
 def slosilo_deprecated(
     provizanto: str = typer.Argument(...),
-    key: Optional[str] = typer.Option(None, "--key", "-k"),
-    base_url: Optional[str] = typer.Option(None, "--base-url", "-b"),
+    key: Optional[str] = typer.Option(None, "--slosilo", "--key", "-k", hidden=True),
+    base_url: Optional[str] = typer.Option(None, "--baza-url", "--base-url", "-b", hidden=True),
     noto: Optional[str] = typer.Option(None, "--noto", "-n"),
     modelo: Optional[str] = typer.Option(None, "--modelo", "-m"),
 ) -> None:
@@ -181,8 +181,8 @@ def slosilo_deprecated(
 ))
 def sxlosilo_deprecated(
     provizanto: str = typer.Argument(...),
-    key: Optional[str] = typer.Option(None, "--key", "-k"),
-    base_url: Optional[str] = typer.Option(None, "--base-url", "-b"),
+    key: Optional[str] = typer.Option(None, "--slosilo", "--key", "-k", hidden=True),
+    base_url: Optional[str] = typer.Option(None, "--baza-url", "--base-url", "-b", hidden=True),
     noto: Optional[str] = typer.Option(None, "--noto", "-n"),
     modelo: Optional[str] = typer.Option(None, "--modelo", "-m"),
 ) -> None:
