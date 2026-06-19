@@ -99,9 +99,8 @@ def generi(
     ),
     verbose: bool = typer.Option(
         False,
-        "--verbose",
         "--detala",
-        "-v",
+        "--verbose", "-v", hidden=True,
         help=tr_multi(
             "Montri la plenan konversacion kun LLM (inkluzive de pensado)",
             "Show full LLM conversation (including reasoning/thinking)",

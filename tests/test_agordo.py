@@ -67,7 +67,7 @@ class TestAldoniCommand:
             app,
             [
                 "agordi", "aldoni", "openai",
-                "--key", "sk-test123",
+                "--slosilo", "sk-test123",
                 "--noto", "work",
                 "--modelo", "gpt-4",
             ],
@@ -90,8 +90,8 @@ class TestAldoniCommand:
             app,
             [
                 "agordi", "aldoni", "openai",
-                "--key", "sk-test123",
-                "--base-url", "https://custom.endpoint/v1",
+                "--slosilo", "sk-test123",
+                "--baza-url", "https://custom.endpoint/v1",
             ],
         )
         assert result.exit_code == 0
@@ -103,7 +103,7 @@ class TestAldoniCommand:
         """Test aldoni with ollama shows warning."""
         result = runner.invoke(
             app,
-            ["agordi", "aldoni", "ollama", "--key", "dummy"],
+            ["agordi", "aldoni", "ollama", "--slosilo", "dummy"],
         )
         assert result.exit_code == 0
         assert "Ollama" in result.output
@@ -114,7 +114,7 @@ class TestAldoniCommand:
              patch("A_agento.agordo.save_provider_config"):
             result = runner.invoke(
                 app,
-                ["agordi", "aldoni", "my-custom-endpoint", "--key", "test"],
+                ["agordi", "aldoni", "my-custom-endpoint", "--slosilo", "test"],
             )
             assert result.exit_code == 0
             assert "konservita" in result.output or "saved" in result.output
@@ -195,7 +195,7 @@ class TestModifiCommand:
 
         result = runner.invoke(
             app,
-            ["agordi", "modifi", "openai", "--base-url", "https://new.endpoint/v1"],
+                ["agordi", "modifi", "openai", "--baza-url", "https://new.endpoint/v1"],
         )
         assert result.exit_code == 0
 
@@ -242,7 +242,7 @@ class TestDeprecatedAliases:
              patch("A_agento.agordo.save_provider_config"):
             result = runner.invoke(
                 app,
-                ["agordi", "slosilo", "openai", "--key", "test"],
+                ["agordi", "slosilo", "openai", "--slosilo", "test"],
             )
             assert result.exit_code == 0
 
@@ -252,7 +252,7 @@ class TestDeprecatedAliases:
              patch("A_agento.agordo.save_provider_config"):
             result = runner.invoke(
                 app,
-                ["agordi", "sxlosilo", "openai", "--key", "test"],
+                ["agordi", "sxlosilo", "openai", "--slosilo", "test"],
             )
             assert result.exit_code == 0
 
