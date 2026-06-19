@@ -111,8 +111,7 @@ def plibonigi(
     ),
     verbose: bool = typer.Option(
         False,
-        "--detala",
-        "--verbose", "-v", hidden=True,
+        "--detala", "-v",
         help=tr_multi(
             "Montri la plenan konversacion kun LLM",
             "Show full LLM conversation",
